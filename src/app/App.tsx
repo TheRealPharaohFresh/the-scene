@@ -4,42 +4,46 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import SplashScreen from "../features/splash/SplashScreen";
 import Login from "../features/auth/Login";
 import Register from "../features/auth/Register";
+import CreateProfile from "../features/auth/onboarding/CreateProfile";
+import Dashboard from "../features/auth/dashboard/Dashboard";
+import { getCurrentUserId, hasCompletedProfile } from "../features/auth/authService";
 
 import "./App.css";
 
+function HomeRedirect() {
+  const userId = getCurrentUserId();
+  if (!userId) {
+    return <Navigate to="/login" replace />;
+  }
+  return <Navigate to={hasCompletedProfile() ? "/dashboard" : "/create-profile"} replace />;
+}
+
 function App() {
-  console.log('App render');
+  console.log("APP RENDERED");
+
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 4000); // Show splash screen for 4 seconds
+    }, 4000);
 
     return () => clearTimeout(timer);
   }, []);
 
-  if (showSplash) {
-    return <SplashScreen />;
-  }
-
   return (
     <BrowserRouter>
-      <Routes>
-
-        {/* Authentication */}
-        <Route path="/login" element={<Login />} />
-
-        <Route path="/register" element={<Register />} />
-
-
-        {/* Temporary Home Route */}
-        <Route
-          path="/"
-          element={<Navigate to="/login" />}
-        />
-
-      </Routes>
+      {showSplash ? (
+        <SplashScreen />
+      ) : (
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/create-profile" element={<CreateProfile />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/" element={<HomeRedirect />} />
+        </Routes>
+      )}
     </BrowserRouter>
   );
 }

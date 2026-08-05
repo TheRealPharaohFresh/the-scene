@@ -1,0 +1,142 @@
+:root {
+  --button-radius: 999px;
+  --button-padding: 0.8rem 1.25rem;
+  --button-font-size: 1rem;
+  --button-font-weight: 700;
+  --button-text-color: #F5F4F2;
+  --button-transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+body {
+  background: #050408;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  transition: var(--button-transition);
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+.login-button,
+.register-button,
+.submit-button,
+.cancel-button,
+.logout-button,
+.discover-button,
+.send-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--button-radius);
+  padding: var(--button-padding);
+  font-size: var(--button-font-size);
+  font-weight: var(--button-font-weight);
+  cursor: pointer;
+  text-decoration: none;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.login-button {
+  background: #050408;
+  color: var(--button-text-color);
+}
+
+.login-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #F5F4F2;
+  transform: skewX(-45deg) scale(0, 1);
+  transition: transform 0.35s ease;
+  z-index: 0;
+}
+
+.login-button:hover {
+  color: #050408;
+}
+
+.login-button:hover::after {
+  transform: skewX(-45deg) scale(1, 1);
+}
+
+.login-button > * {
+  position: relative;
+  z-index: 1;
+}
+
+.register-button {
+  background: linear-gradient(90deg, #7727E9 0%, #B236AC 100%);
+  color: var(--button-text-color);
+  box-shadow: 0 10px 24px rgba(119, 39, 233, 0.25);
+}
+
+.register-button:hover {
+  box-shadow: 0 14px 28px rgba(119, 39, 233, 0.35);
+}
+
+.discover-button {
+  background: linear-gradient(90deg, #F7326D 0%, #7727E9 100%);
+  color: var(--button-text-color);
+}
+
+.submit-button {
+  background: #7727E9;
+  color: var(--button-text-color);
+}
+
+.submit-button:hover {
+  background: #B236AC;
+}
+
+.cancel-button,
+.logout-button {
+  background: linear-gradient(90deg, #F7326D 0%, #FF4D6D 100%);
+  color: var(--button-text-color);
+}
+
+.send-button {
+  background: linear-gradient(90deg, #7727E9 0%, #B236AC 100%);
+  color: var(--button-text-color);
+  min-width: 160px;
+}
+
+.send-button:hover {
+  transform: scale(1.02);
+}
+
+@keyframes jello-horizontal {
+  0% {
+    transform: scale3d(1, 1, 1);
+  }
+  30% {
+    transform: scale3d(1.25, 0.75, 1);
+  }
+  40% {
+    transform: scale3d(0.75, 1.25, 1);
+  }
+  50% {
+    transform: scale3d(1.15, 0.85, 1);
+  }
+  65% {
+    transform: scale3d(0.95, 1.05, 1);
+  }
+  75% {
+    transform: scale3d(1.05, 0.95, 1);
+  }
+  100% {
+    transform: scale3d(1, 1, 1);
+  }
+}
+
+.cancel-button:hover,
+.logout-button:hover {
+  animation: jello-horizontal 0.9s both;
+}

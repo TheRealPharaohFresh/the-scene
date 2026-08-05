@@ -85,30 +85,34 @@ Planned profile features include:
 ## ✅ What We Completed So Far
 
 Today’s progress includes:
-- Set up a React + TypeScript + Vite app
-- Built the application structure and routing foundation
-- Implemented a splash screen experience
-- Added animated splash logo styling and flicker effect
-- Created placeholder login and register views
-- Resolved import/runtime issues so the app loads successfully
-- Added a working development setup for local preview
+- Added a first-time profile onboarding flow at `src/features/auth/onboarding/CreateProfile.tsx`
+- Built modular shared form controls in `src/components/ui/Input.tsx`, `src/components/ui/Select.tsx`, and `src/components/ui/Checkbox.tsx`
+- Implemented nickname, gender, entertainment category, dynamic role selection, bio, location, portfolio, social links, and looking-for options
+- Added US state and city selection support in the profile form using `country-state-city`
+- Added first-login routing logic so new users are redirected to profile setup and returning users go to `/dashboard`
+- Added localStorage-based auth stubs in `src/features/auth/authService.ts`
+- Updated login and register flows to route the user into onboarding or dashboard based on profile completion
+- Added registration error handling to `src/features/auth/Register.tsx`
+- Fixed TypeScript syntax and verified compile success
 
 ---
 
 ## 📂 Current Development Status
 
-Currently building:
+Currently built:
 
 ✅ React + TypeScript foundation  
 ✅ Application architecture  
 ✅ Splash screen experience  
 ✅ Authentication flow structure  
-✅ Registration workflow planning  
-⬜ Firebase integration  
-⬜ User profiles  
-⬜ Discovery system  
-⬜ Messaging  
-⬜ Subscription system  
+✅ Registration workflow  
+✅ First-login profile onboarding  
+✅ Modular shared UI form components  
+✅ Local profile state and route guards  
+⬜ Firebase backend integration  
+⬜ User discovery and matching  
+⬜ Messaging system  
+⬜ Premium subscription features  
 
 ---
 
