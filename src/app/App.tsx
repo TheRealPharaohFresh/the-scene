@@ -6,6 +6,7 @@ import Login from "../features/auth/Login";
 import Register from "../features/auth/Register";
 import CreateProfile from "../features/auth/onboarding/CreateProfile";
 import Dashboard from "../features/auth/dashboard/Dashboard";
+import Profile from "../features/auth/profile/Profile";
 import { getCurrentUserId, hasCompletedProfile } from "../features/auth/authService";
 
 import "./App.css";
@@ -41,6 +42,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/create-profile" element={<CreateProfile />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/" element={<HomeRedirect />} />
         </Routes>
       )}

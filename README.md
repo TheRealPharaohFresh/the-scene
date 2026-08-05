@@ -38,14 +38,14 @@ Users can identify their entertainment background and select roles across indust
 - Other creative industries
 
 ### Creative Profiles
-Planned profile features include:
-- Profile images
-- Bio and background details
-- Entertainment categories
-- Professional roles
-- Portfolio links
-- Social connections
-- Collaboration goals
+Implemented and planned profile features include:
+- Profile creation onboarding flow
+- Bio and entertainment background details
+- Entertainment categories and role selection
+- Location selection with US state and city support
+- Portfolio and social link fields
+- Looking-for preferences
+- Profile display page and dashboard redirect flow
 
 ---
 
@@ -76,6 +76,7 @@ Planned profile features include:
 - Firebase Authentication
 - Firestore Database
 - Cloud Storage
+- LocalStorage-based auth/profile persistence currently used for prototyping
 
 ### Mobile Expansion
 - Capacitor for iOS and Android deployment
@@ -86,12 +87,13 @@ Planned profile features include:
 
 Today’s progress includes:
 - Added a first-time profile onboarding flow at `src/features/auth/onboarding/CreateProfile.tsx`
+- Built the profile display page under `src/features/auth/profile/Profile.tsx`
+- Created localStorage-based profile persistence in `src/services/firebase.ts`
+- Implemented profile completion gating in `src/features/auth/authService.ts`
 - Built modular shared form controls in `src/components/ui/Input.tsx`, `src/components/ui/Select.tsx`, and `src/components/ui/Checkbox.tsx`
 - Implemented nickname, gender, entertainment category, dynamic role selection, bio, location, portfolio, social links, and looking-for options
 - Added US state and city selection support in the profile form using `country-state-city`
 - Added first-login routing logic so new users are redirected to profile setup and returning users go to `/dashboard`
-- Added localStorage-based auth stubs in `src/features/auth/authService.ts`
-- Updated login and register flows to route the user into onboarding or dashboard based on profile completion
 - Added registration error handling to `src/features/auth/Register.tsx`
 - Fixed TypeScript syntax and verified compile success
 

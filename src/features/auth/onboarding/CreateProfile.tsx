@@ -20,7 +20,6 @@ import { SubmitButton } from "../../../components/ui/Button";
 import {
   NicknameInput,
   BioInput,
-  LocationInput,
   PortfolioInput,
   SocialMediaInput,
 } from "../../../components/ui/Input";
@@ -60,6 +59,8 @@ export default function CreateProfile() {
   const [stateCode, setStateCode] = useState("");
   const [city, setCity] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+  const [coverPhoto, setCoverPhoto] = useState<File | null>(null);
   const [socialMedia, setSocialMedia] = useState<
     Record<SocialFieldKey, string>
   >({
@@ -122,7 +123,7 @@ export default function CreateProfile() {
     );
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage("");
 
@@ -148,7 +149,7 @@ export default function CreateProfile() {
       bio,
       location: `${city}, ${selectedState?.name ?? ""}`,
       city,
-      state: selectedState?.name ?? "",
+      stateCode: selectedState?.name ?? "",
       portfolioUrl,
       socialMedia: socialMedia as SocialMediaLinks,
       lookingFor,
@@ -217,6 +218,29 @@ export default function CreateProfile() {
               onChange={setNickname}
               placeholder="Preferred name"
             />
+            <div style={{ display: "grid", gap: 16 }}>
+  <label>
+    Profile Photo *
+    <input
+      type="file"
+      accept="image/*"
+      onChange={(e) =>
+        setProfilePhoto(e.target.files?.[0] ?? null)
+      }
+    />
+  </label>
+
+  <label>
+    Cover Photo
+    <input
+      type="file"
+      accept="image/*"
+      onChange={(e) =>
+        setCoverPhoto(e.target.files?.[0] ?? null)
+      }
+    />
+  </label>
+</div>
 
             <GenderSelect
               value={gender}

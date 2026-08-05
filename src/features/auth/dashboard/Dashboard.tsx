@@ -25,6 +25,7 @@ export default function Dashboard() {
           background: "rgba(255,255,255,0.1)",
           backdropFilter: "blur(18px)",
           WebkitBackdropFilter: "blur(18px)",
+          boxShadow: "0 20px 45px rgba(0, 0, 0, 0.35)",
           border: "1px solid rgba(245,244,242,0.16)",
         }}
       >
@@ -33,6 +34,21 @@ export default function Dashboard() {
           This is your home base. Once your profile is saved, use this page to navigate the community and continue building your scene.
         </p>
         <div style={{ display: "grid", gap: 14, maxWidth: 420 }}>
+          <button
+            type="button"
+            onClick={() => navigate("/profile")}
+            style={{
+              borderRadius: 999,
+              border: "1px solid rgba(245,244,242,0.2)",
+              padding: "14px 18px",
+              background: "transparent",
+              color: "#F5F4F2",
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            View your profile
+          </button>
           <button
             type="button"
             onClick={() => navigate("/create-profile")}
