@@ -19,9 +19,13 @@ export type UserProfile = {
   entertainmentCategory?: EntertainmentCategory;
   roles: string[];
   bio: string;
-  location: string;
+  stateCode?: string;
+  city?: string;
+  location?: string;
   portfolioUrl: string;
   socialMedia: SocialMediaLinks;
   lookingFor: LookingForOption[];
   createdAt: string;
+  profilePhotoUrl?: string;
+  coverPhotoUrl?: string;
 };

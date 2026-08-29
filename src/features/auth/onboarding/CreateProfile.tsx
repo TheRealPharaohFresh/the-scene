@@ -61,6 +61,8 @@ export default function CreateProfile() {
   const [portfolioUrl, setPortfolioUrl] = useState("");
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [coverPhoto, setCoverPhoto] = useState<File | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
   const [socialMedia, setSocialMedia] = useState<
     Record<SocialFieldKey, string>
   >({
@@ -123,6 +125,44 @@ export default function CreateProfile() {
     );
   };
 
+  const fileToDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const compressImage = (file: File, maxWidth = 800, quality = 0.7) =>
+    new Promise<string>((resolve, reject) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        try {
+          const ratio = img.width / img.height;
+          const width = Math.min(maxWidth, img.width);
+          const height = Math.round(width / ratio);
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("Canvas not supported"));
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          resolve(dataUrl);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      // Read as data URL for the image source
+      const reader = new FileReader();
+      reader.onload = () => {
+        img.src = String(reader.result ?? "");
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage("");
@@ -139,6 +179,20 @@ export default function CreateProfile() {
       return;
     }
 
+    // compress images to small thumbnails to avoid localStorage quota issues
+    let compressedProfilePhoto: string | undefined = undefined;
+    let compressedCoverPhoto: string | undefined = undefined;
+    try {
+      if (profilePhoto) {
+        compressedProfilePhoto = await compressImage(profilePhoto, 600, 0.7);
+      }
+      if (coverPhoto) {
+        compressedCoverPhoto = await compressImage(coverPhoto, 1000, 0.7);
+      }
+    } catch (err) {
+      console.warn("Image compression failed, skipping photos", err);
+    }
+
     const profile: UserProfile = {
       userId,
       displayName: nickname || "",
@@ -149,11 +203,13 @@ export default function CreateProfile() {
       bio,
       location: `${city}, ${selectedState?.name ?? ""}`,
       city,
-      stateCode: selectedState?.name ?? "",
+      stateCode: selectedState?.isoCode ?? "",
       portfolioUrl,
       socialMedia: socialMedia as SocialMediaLinks,
       lookingFor,
       createdAt: new Date().toISOString(),
+      profilePhotoUrl: compressedProfilePhoto ?? undefined,
+      coverPhotoUrl: compressedCoverPhoto ?? undefined,
     };
 
     try {
@@ -163,8 +219,8 @@ export default function CreateProfile() {
       setMessage("Profile saved. Redirecting to your dashboard...");
       setTimeout(() => navigate("/dashboard"), 750);
     } catch (error) {
-      console.error(error);
-      setMessage("Unable to save profile. Please try again.");
+      console.error("CreateProfile save error:", error);
+      setMessage(error instanceof Error ? error.message : "Unable to save profile. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -224,9 +280,20 @@ export default function CreateProfile() {
     <input
       type="file"
       accept="image/*"
-      onChange={(e) =>
-        setProfilePhoto(e.target.files?.[0] ?? null)
-      }
+      onChange={async (e) => {
+        const file = e.target.files?.[0] ?? null;
+        setProfilePhoto(file);
+        if (file) {
+          try {
+            const preview = await fileToDataUrl(file);
+            setProfilePhotoUrl(preview);
+          } catch (err) {
+            console.error("Failed to read profile photo", err);
+          }
+        } else {
+          setProfilePhotoUrl(null);
+        }
+      }}
     />
   </label>
 
@@ -235,11 +302,41 @@ export default function CreateProfile() {
     <input
       type="file"
       accept="image/*"
-      onChange={(e) =>
-        setCoverPhoto(e.target.files?.[0] ?? null)
-      }
+      onChange={async (e) => {
+        const file = e.target.files?.[0] ?? null;
+        setCoverPhoto(file);
+        if (file) {
+          try {
+            const preview = await fileToDataUrl(file);
+            setCoverPhotoUrl(preview);
+          } catch (err) {
+            console.error("Failed to read cover photo", err);
+          }
+        } else {
+          setCoverPhotoUrl(null);
+        }
+      }}
     />
   </label>
+</div>
+
+{/* Image previews */}
+<div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 8 }}>
+  {profilePhotoUrl ? (
+    <img
+      src={profilePhotoUrl}
+      alt="Profile preview"
+      style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 999 }}
+    />
+  ) : null}
+
+  {coverPhotoUrl ? (
+    <img
+      src={coverPhotoUrl}
+      alt="Cover preview"
+      style={{ width: 160, height: 80, objectFit: "cover", borderRadius: 8 }}
+    />
+  ) : null}
 </div>
 
             <GenderSelect

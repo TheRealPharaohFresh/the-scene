@@ -7,6 +7,7 @@ import Register from "../features/auth/Register";
 import CreateProfile from "../features/auth/onboarding/CreateProfile";
 import Dashboard from "../features/auth/dashboard/Dashboard";
 import Profile from "../features/auth/profile/Profile";
+import ProtectedRoute from "../components/ui/layout/ProtectedRoute";
 import { getCurrentUserId, hasCompletedProfile } from "../features/auth/authService";
 
 import "./App.css";
@@ -41,8 +42,22 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/create-profile" element={<CreateProfile />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/" element={<HomeRedirect />} />
         </Routes>
       )}

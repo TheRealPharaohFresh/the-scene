@@ -125,3 +125,23 @@ The Scene aims to bridge the gap between entertainment networking and modern soc
 ---
 
 Built with React + TypeScript.
+
+## Firebase Setup (optional)
+
+The app currently uses localStorage for prototyping. To enable production-ready profile storage and image hosting, configure Firebase and provide the following environment variables in a `.env` file at the project root (see `.env.example`):
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+
+Install the Firebase SDK and restart the dev server:
+
+```bash
+npm install firebase
+npm run dev
+```
+
+With Firebase configured, profile images will be uploaded to Firebase Storage and profiles saved to Firestore. The application will automatically fall back to localStorage when Firebase is not configured.
