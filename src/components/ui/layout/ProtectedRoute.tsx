@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { getCurrentUserId, hasCompletedProfile } from "../../../features/auth/authService";
+import { getCurrentUserId, hasCompletedProfile, listenForAuthState } from "../../../features/auth/authService";
 
 type Props = {
 	children: React.ReactNode;
@@ -8,8 +8,30 @@ type Props = {
 };
 
 export default function ProtectedRoute({ children, requireProfileComplete = true }: Props) {
-	const userId = getCurrentUserId();
-	if (!userId) {
+	const [authReady, setAuthReady] = useState(false);
+	const [userId, setUserId] = useState<string | null>(null);
+
+	useEffect(() => {
+		let unsubscribe: (() => void) | undefined;
+
+		(async () => {
+			unsubscribe = await listenForAuthState((user) => {
+				setUserId(user?.uid ?? null);
+				setAuthReady(true);
+			});
+		})();
+
+		return () => {
+			unsubscribe?.();
+		};
+	}, []);
+
+	if (!authReady) {
+		return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", color: "#F5F4F2" }}>Loading…</div>;
+	}
+
+	const currentUserId = userId ?? getCurrentUserId();
+	if (!currentUserId) {
 		return <Navigate to="/login" replace />;
 	}
 
@@ -18,7 +40,6 @@ export default function ProtectedRoute({ children, requireProfileComplete = true
 	}
 
 	// Authorized
-	// eslint-disable-next-line react/jsx-no-useless-fragment
 	return <>{children}</>;
 }
 

@@ -4,8 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { loginUser, hasCompletedProfile } from "./authService";
 
 export default function Login() {
-	console.log("Login component render");
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -18,13 +17,13 @@ export default function Login() {
     setError("");
     setResetMessage("");
 
-    if (!username || !password) {
-      setError("Please enter both username and password.");
+    if (!email || !password) {
+      setError("Please enter both email and password.");
       return;
     }
 
     try {
-      await loginUser({ username, password });
+      await loginUser({ email, password });
       const destination = hasCompletedProfile() ? "/dashboard" : "/create-profile";
       navigate(destination, { replace: true });
     } catch (error) {
@@ -43,7 +42,6 @@ export default function Login() {
     setResetEmail("");
   };
   const handleRegisterRedirect = () => {
-    console.log("Register Button clicked. Redirecting to /register...");
     navigate("/register");
   };
 
@@ -81,10 +79,10 @@ export default function Login() {
         </p>
         <form onSubmit={handleLogin}>
           <input
-            type="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
             style={{
               display: "block",
               width: "100%",

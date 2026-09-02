@@ -8,21 +8,41 @@ import CreateProfile from "../features/auth/onboarding/CreateProfile";
 import Dashboard from "../features/auth/dashboard/Dashboard";
 import Profile from "../features/auth/profile/Profile";
 import ProtectedRoute from "../components/ui/layout/ProtectedRoute";
-import { getCurrentUserId, hasCompletedProfile } from "../features/auth/authService";
+import { hasCompletedProfile, listenForAuthState } from "../features/auth/authService";
 
 import "./App.css";
 
 function HomeRedirect() {
-  const userId = getCurrentUserId();
+  const [authReady, setAuthReady] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
+    (async () => {
+      unsubscribe = await listenForAuthState((user) => {
+        setUserId(user?.uid ?? null);
+        setAuthReady(true);
+      });
+    })();
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, []);
+
+  if (!authReady) {
+    return <SplashScreen />;
+  }
+
   if (!userId) {
     return <Navigate to="/login" replace />;
   }
+
   return <Navigate to={hasCompletedProfile() ? "/dashboard" : "/create-profile"} replace />;
 }
 
 function App() {
-  console.log("APP RENDERED");
-
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {

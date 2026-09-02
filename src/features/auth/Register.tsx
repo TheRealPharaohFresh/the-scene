@@ -16,7 +16,6 @@ export default function Register() {
 	const handleRegister = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setError('');
-		console.log('Register attempt with:', { username, email, firstName, lastName, password });
 		
 		if (!username || !email || !firstName || !lastName || !password) {
 			setError('Please fill in all fields.');

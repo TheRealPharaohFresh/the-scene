@@ -4,21 +4,21 @@ import { uploadDataUrlToStorage, initFirebase } from "./firebaseClient";
 const PROFILE_STORAGE_PREFIX = "the-scene-profile-";
 const PROFILE_COMPLETE_KEY = "the-scene-profile-complete";
 
-async function useFirestoreSave(userId: string, profile: UserProfile) {
+async function saveProfileToFirestore(userId: string, profile: UserProfile) {
   const client = await initFirebase();
   if (!client) throw new Error("Firebase not configured");
 
-  const { firestore } = client as any;
+  const { firestore } = client;
   const { doc, setDoc } = await import("firebase/firestore");
   const ref = doc(firestore, "profiles", userId);
   await setDoc(ref, profile);
 }
 
-async function useFirestoreFetch(userId: string) {
+async function fetchProfileFromFirestore(userId: string) {
   const client = await initFirebase();
   if (!client) throw new Error("Firebase not configured");
 
-  const { firestore } = client as any;
+  const { firestore } = client;
   const { doc, getDoc } = await import("firebase/firestore");
   const ref = doc(firestore, "profiles", userId);
   const snap = await getDoc(ref);
@@ -39,7 +39,7 @@ export async function saveUserProfile(userId: string, profile: UserProfile) {
           const url = await uploadDataUrlToStorage(profile.profilePhotoUrl, `profiles/${userId}/profile.jpg`);
           profile.profilePhotoUrl = url;
         } catch (err) {
-          console.warn("upload profile photo failed, keeping data url", err);
+          throw new Error("Profile photo upload failed. Check Firebase Storage rules and bucket CORS settings.", { cause: err });
         }
       }
       if (profile.coverPhotoUrl && profile.coverPhotoUrl.startsWith("data:")) {
@@ -47,12 +47,12 @@ export async function saveUserProfile(userId: string, profile: UserProfile) {
           const url = await uploadDataUrlToStorage(profile.coverPhotoUrl, `profiles/${userId}/cover.jpg`);
           profile.coverPhotoUrl = url;
         } catch (err) {
-          console.warn("upload cover photo failed, keeping data url", err);
+          throw new Error("Cover photo upload failed. Check Firebase Storage rules and bucket CORS settings.", { cause: err });
         }
       }
 
       // save to Firestore
-      await useFirestoreSave(userId, profile);
+      await saveProfileToFirestore(userId, profile);
       // mark profile complete locally as well
       window.localStorage.setItem(PROFILE_COMPLETE_KEY, "true");
       return;
@@ -70,7 +70,7 @@ export async function saveUserProfile(userId: string, profile: UserProfile) {
   } catch (err) {
     console.error("saveUserProfile error:", err);
     const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to save profile: ${msg}`);
+    throw new Error(`Failed to save profile: ${msg}`, { cause: err });
   }
 }
 
@@ -81,7 +81,7 @@ export async function fetchUserProfile(userId: string) {
     const firebaseAvailable = !!import.meta.env.VITE_FIREBASE_API_KEY;
     if (firebaseAvailable) {
       try {
-        const p = await useFirestoreFetch(userId);
+        const p = await fetchProfileFromFirestore(userId);
         if (p) return p;
       } catch (err) {
         console.warn("Firestore fetch failed, falling back to localStorage", err);
