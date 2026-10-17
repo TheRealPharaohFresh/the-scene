@@ -22,6 +22,8 @@ const Admin = lazy(() => import("../features/community/Admin"));
 const Premium = lazy(() => import("../features/community/Premium"));
 const Matches = lazy(() => import("../features/messages/Matches"));
 const Chat = lazy(() => import("../features/messages/Chat"));
+const Terms = lazy(() => import("../features/legal/Legal").then((m) => ({ default: m.Terms })));
+const Privacy = lazy(() => import("../features/legal/Legal").then((m) => ({ default: m.Privacy })));
 const Discover = lazy(() => import("../features/auth/discovery/Discover"));
 
 function HomeRedirect() {
@@ -103,6 +105,8 @@ function App() {
         <Suspense fallback={<SplashScreen />}>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/register" element={<Register />} />
             <Route
               path="/create-profile"

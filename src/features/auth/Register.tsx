@@ -181,7 +181,7 @@ export default function Register() {
 									onChange={(e) => setAdultAttested(e.target.checked)}
 									required
 								/>
-								<span>I confirm that I am at least 18 years old.</span>
+								<span>I confirm that I am at least 18 and agree to the <Link to="/terms" style={{ color: '#F7326D' }}>Terms</Link> and <Link to="/privacy" style={{ color: '#F7326D' }}>Privacy Policy</Link>.</span>
 							</label>
 							<div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
 								<SubmitButton disabled={submitting}>{submitting ? 'Creating account...' : 'Create account'}</SubmitButton>
