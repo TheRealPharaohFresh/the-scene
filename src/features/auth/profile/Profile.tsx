@@ -204,6 +204,7 @@ export default function ProfilePage({ profile: initialProfile }: Props) {
                 Edit profile
               </button>
               <button type="button" onClick={() => navigate("/discover")}>Discover</button>
+              <button type="button" onClick={() => navigate("/premium")}>Premium</button>
             </div>
           </div>
 

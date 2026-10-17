@@ -16,6 +16,7 @@ const MemberProfile = lazy(() => import("../features/auth/discovery/MemberProfil
 const Forum = lazy(() => import("../features/community/Forum"));
 const ThreadPage = lazy(() => import("../features/community/ThreadPage"));
 const GroupPage = lazy(() => import("../features/community/GroupPage"));
+const Premium = lazy(() => import("../features/community/Premium"));
 const Discover = lazy(() => import("../features/auth/discovery/Discover"));
 
 function HomeRedirect() {
@@ -167,6 +168,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <GroupPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/premium"
+              element={
+                <ProtectedRoute>
+                  <Premium />
                 </ProtectedRoute>
               }
             />
