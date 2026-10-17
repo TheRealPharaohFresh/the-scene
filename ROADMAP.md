@@ -250,6 +250,24 @@ All screens were checked for horizontal overflow at 360×780, 393×852, 402×874
 - [ ] Never accept a client-controlled subscription flag or create live products/charges without approval.
 - [ ] Document mobile-store requirements before any Capacitor subscription work.
 
+### Monetization plan (owner-provided; prices are test hypotheses, not market rates)
+
+Order of priority, easiest/lowest-infrastructure first within each tier:
+
+1. **Premium membership, $10.99/mo** (this phase): advanced searches, profile customization, more networking/messaging, analytics/visibility tools, exclusive opportunities. Free tier must stay genuinely useful.
+2. **Business/recruiter accounts** (test $49 / $99 / $199 per month): talent discovery, saved searches, casting listings, team access. Requires business verification.
+3. **Paid casting calls and job listings** (test $19 standard, $49 featured, $99+ monthly package): requires listing review to block fake casting calls and scams.
+4. **Profile boosts / featured placement** (test $3.99 24h, $9.99 7d, $19.99 creator of the week): paid placements must be clearly labelled; never promise jobs.
+5. **Sponsorships and events/workshops**: sponsored opportunities, featured events, paid workshops.
+6. **Marketplace commissions** (e.g. 10% of verified-service bookings): needs payments, disputes and fraud handling.
+7. **Advertising** (AdMob/AdSense): only after traffic grows.
+
+Illustrative model only (not a forecast): 200 members + 25 businesses + 40 listings + boosts ≈ $6,133/mo before fees, taxes and refunds.
+
+Rollout: build community → premium → business accounts/listings → boosts/sponsors → marketplace. Safety rules: verification and fraud prevention before paid listings; entitlements are set only by a trusted backend, never by the client.
+
+Implementation status: only a **client-side groundwork layer** is planned without billing (plan definitions, a feature-gate helper, and an upgrade screen with no purchase). Real charging stays blocked on provider choice, Blaze billing, and owner approval.
+
 ## Phase 9 — Portfolio and networking tools
 
 - [x] Display validated portfolio/social links without embedding arbitrary third-party content.
