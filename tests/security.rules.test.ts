@@ -411,6 +411,93 @@ describe("Firestore and Storage security rules", () => {
     await assertFails(getDoc(doc(otherDb, "swipes", "owner", "items", "other")));
   });
 
+  it("lets only approved businesses post listings, and only admins approve", async () => {
+    await testEnvironment.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "admins", "boss"), { note: "seeded in console" });
+    });
+    const biz = testEnvironment.authenticatedContext("biz").firestore();
+    const other = testEnvironment.authenticatedContext("other").firestore();
+    const admin = testEnvironment.authenticatedContext("boss").firestore();
+    const application = {
+      ownerId: "biz",
+      name: "Neon Records",
+      kind: "Record label",
+      website: "https://neon.example",
+      description: "Independent label signing new artists.",
+      status: "pending",
+      createdAt: serverTimestamp(),
+    };
+    const listing = (extra: Record<string, unknown> = {}) => ({
+      ownerId: "biz",
+      businessName: "Neon Records",
+      title: "Vocalist for EP",
+      category: "Music",
+      description: "Paid session vocalist needed.",
+      location: "Atlanta, GA",
+      compensation: "$300 flat",
+      status: "pending",
+      createdAt: serverTimestamp(),
+      ...extra,
+    });
+
+    await assertFails(setDoc(doc(biz, "businesses", "biz"), { ...application, status: "approved" }));
+    await assertFails(setDoc(doc(other, "businesses", "biz"), application));
+    await assertSucceeds(setDoc(doc(biz, "businesses", "biz"), application));
+    await assertFails(getDoc(doc(other, "businesses", "biz")));
+    await assertSucceeds(getDoc(doc(admin, "businesses", "biz")));
+
+    await assertFails(setDoc(doc(biz, "listings", "l1"), listing()));
+    await assertFails(
+      updateDoc(doc(biz, "businesses", "biz"), { status: "approved", reviewedAt: serverTimestamp() }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(admin, "businesses", "biz"), { status: "approved", reviewedAt: serverTimestamp() }),
+    );
+
+    await assertFails(setDoc(doc(biz, "listings", "l1"), listing({ status: "approved" })));
+    await assertFails(setDoc(doc(biz, "listings", "l1"), listing({ businessName: "Someone Else" })));
+    await assertSucceeds(setDoc(doc(biz, "listings", "l1"), listing()));
+
+    const approved = (db: typeof biz) =>
+      getDocs(query(collection(db, "listings"), where("status", "==", "approved")));
+    await assertSucceeds(approved(other));
+    await assertFails(getDoc(doc(other, "listings", "l1")));
+    await assertSucceeds(getDoc(doc(biz, "listings", "l1")));
+    await assertFails(updateDoc(doc(biz, "listings", "l1"), { status: "approved" }));
+    await assertSucceeds(
+      updateDoc(doc(admin, "listings", "l1"), { status: "approved", reviewedAt: serverTimestamp() }),
+    );
+    await assertSucceeds(getDoc(doc(other, "listings", "l1")));
+    await assertFails(updateDoc(doc(other, "listings", "l1"), { status: "closed" }));
+    await assertFails(updateDoc(doc(biz, "listings", "l1"), { title: "Edited" }));
+    await assertSucceeds(updateDoc(doc(biz, "listings", "l1"), { status: "closed" }));
+    await assertFails(deleteDoc(doc(biz, "listings", "l1")));
+  });
+
+  it("keeps admins unforgeable and reports readable only by admins", async () => {
+    await testEnvironment.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "admins", "boss"), { note: "seeded" });
+    });
+    const user = testEnvironment.authenticatedContext("user").firestore();
+    const admin = testEnvironment.authenticatedContext("boss").firestore();
+    await assertFails(setDoc(doc(user, "admins", "user"), { note: "self-promote" }));
+    await assertFails(getDoc(doc(user, "admins", "boss")));
+    await assertSucceeds(getDoc(doc(admin, "admins", "boss")));
+
+    const report = {
+      reporterId: "user",
+      targetType: "listing",
+      targetPath: "listings/l1",
+      reason: "Looks like a scam",
+      createdAt: serverTimestamp(),
+    };
+    await assertSucceeds(setDoc(doc(user, "reports", "r1"), report));
+    await assertFails(getDoc(doc(user, "reports", "r1")));
+    await assertSucceeds(getDocs(collection(admin, "reports")));
+    await assertFails(deleteDoc(doc(user, "reports", "r1")));
+    await assertSucceeds(deleteDoc(doc(admin, "reports", "r1")));
+  });
+
   it("denies client access to unimplemented interaction collections", async () => {
     const db = testEnvironment.authenticatedContext("owner").firestore();
     await assertFails(setDoc(doc(db, "matches", "forged"), { participants: ["owner"] }));

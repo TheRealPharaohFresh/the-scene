@@ -493,12 +493,86 @@ service cloud.firestore {
     }
 
     // Write-only for members; reviewing reports needs a trusted moderation tool (roadmap Phase 7).
+    // Admins are seeded by the project owner in the Firebase console; clients can never write this.
+    match /admins/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function approvedBusiness(uid) {
+      return exists(/databases/$(database)/documents/businesses/$(uid))
+        && get(/databases/$(database)/documents/businesses/$(uid)).data.status == 'approved';
+    }
+
+    // Business applications start pending; only an admin can approve or reject.
+    match /businesses/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['ownerId', 'name', 'kind', 'website', 'description', 'status', 'createdAt'])
+        && request.resource.data.ownerId == uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.kind in ['Record label', 'Talent agency', 'Production company', 'Studio', 'Management', 'Other']
+        && request.resource.data.website is string
+        && request.resource.data.website.size() <= 200
+        && (request.resource.data.website == '' || validLink(request.resource.data.website))
+        && request.resource.data.description is string
+        && request.resource.data.description.size() >= 10
+        && request.resource.data.description.size() <= 600
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedAt'])
+        && request.resource.data.status in ['approved', 'rejected']
+        && request.resource.data.reviewedAt == request.time;
+      allow delete: if false;
+    }
+
+    // Opportunities are visible to members only after an admin approves them.
+    match /listings/{listingId} {
+      allow read: if signedIn()
+        && (resource.data.status == 'approved' || resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['ownerId', 'businessName', 'title', 'category', 'description', 'location', 'compensation', 'status', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && approvedBusiness(request.auth.uid)
+        && request.resource.data.businessName == get(/databases/$(database)/documents/businesses/$(request.auth.uid)).data.name
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 3
+        && request.resource.data.title.size() <= 120
+        && request.resource.data.category in ['Acting', 'Music', 'Film & video', 'Dance', 'Modeling', 'Crew & production', 'Other']
+        && request.resource.data.description is string
+        && request.resource.data.description.size() >= 10
+        && request.resource.data.description.size() <= 2000
+        && request.resource.data.location is string
+        && request.resource.data.location.size() <= 80
+        && request.resource.data.compensation is string
+        && request.resource.data.compensation.size() <= 120
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+      allow update: if signedIn()
+        && ((resource.data.ownerId == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+              && request.resource.data.status == 'closed')
+          || (isAdmin()
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedAt'])
+              && request.resource.data.status in ['approved', 'rejected']
+              && request.resource.data.reviewedAt == request.time));
+      allow delete: if false;
+    }
+
     match /reports/{reportId} {
-      allow read, update, delete: if false;
+      allow read, delete: if isAdmin();
+      allow update: if false;
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(['reporterId', 'targetType', 'targetPath', 'reason', 'createdAt'])
         && request.resource.data.reporterId == request.auth.uid
-        && request.resource.data.targetType in ['thread', 'reply', 'group', 'event', 'member']
+        && request.resource.data.targetType in ['thread', 'reply', 'group', 'event', 'member', 'listing']
         && request.resource.data.targetPath is string
         && request.resource.data.targetPath.size() <= 200
         && request.resource.data.reason is string

@@ -4,7 +4,7 @@ import { logoutUser } from "../auth/authService";
 import { buttonStyle, inputStyle, linkButtonStyle } from "./styles";
 import { blockMember, reportContent, type ReportTarget } from "../../services/forum";
 
-type Active = "discover" | "community" | "profile";
+type Active = "discover" | "community" | "jobs" | "profile";
 
 const navItem = (active: boolean): CSSProperties => ({
   background: "transparent",
@@ -12,9 +12,9 @@ const navItem = (active: boolean): CSSProperties => ({
   color: "#F5F4F2",
   opacity: active ? 1 : 0.7,
   fontWeight: active ? 700 : 500,
-  fontSize: 14,
+  fontSize: 13,
   cursor: "pointer",
-  padding: "12px 12px",
+  padding: "12px 8px",
   borderBottom: active ? "2px solid #F7326D" : "2px solid transparent",
 });
 
@@ -50,6 +50,9 @@ export function BottomNav({ active, onError }: { active?: Active; onError?: (mes
         </button>
         <button type="button" style={navItem(active === "community")} onClick={() => navigate("/forum")}>
           Community
+        </button>
+        <button type="button" style={navItem(active === "jobs")} onClick={() => navigate("/opportunities")}>
+          Jobs
         </button>
         <button type="button" style={navItem(active === "profile")} onClick={() => navigate("/profile")}>
           My profile

@@ -129,7 +129,7 @@ All screens were checked for horizontal overflow at 360×780, 393×852, 402×874
 
 ## Phase 7 — Safety, trust, and moderation
 
-> Status note: a first community forum (threads, groups, events with RSVP-gated addresses) shipped with write-only `reports` and private `blocks`. Still required: an admin review/moderation tool with trusted authorization, report triage and retention, rate limiting/abuse controls, and legal/safety content for in-person meetups.
+> Status note: an admin review screen now exists for reports, business applications and listings (admins are owner-seeded in the console). A first community forum (threads, groups, events with RSVP-gated addresses) shipped with write-only `reports` and private `blocks`. Still required: an admin review/moderation tool with trusted authorization, report triage and retention, rate limiting/abuse controls, and legal/safety content for in-person meetups.
 
 - [ ] Implement categorized report submission with optional details, confirmation, and restricted access.
 - [ ] Implement block/unblock and enforce it in discovery and messaging at the backend.
@@ -266,7 +266,9 @@ Illustrative model only (not a forecast): 200 members + 25 businesses + 40 listi
 
 Rollout: build community → premium → business accounts/listings → boosts/sponsors → marketplace. Safety rules: verification and fraud prevention before paid listings; entitlements are set only by a trusted backend, never by the client.
 
-Implementation status: only a **client-side groundwork layer** is planned without billing (plan definitions, a feature-gate helper, and an upgrade screen with no purchase). Real charging stays blocked on provider choice, Blaze billing, and owner approval.
+Implementation status (no billing needed, done): plan definitions, feature-gate helper and Premium page (billing off); business-account applications with manual admin approval; casting/job listings hidden until admin approval; admin review screen for businesses, listings and reports; owner-seeded `admins/{uid}` authorization (console-only writes). Still blocked: real charging (provider choice, Blaze billing, owner approval), subscription entitlements, boosts, paid listings, verification beyond manual review, applicant messaging.
+
+**Owner action to enable review:** in the Firebase console, create a Firestore document `admins/<your-uid>` (any field, e.g. `note: "owner"`). Your uid is shown in Authentication > Users.
 
 ## Phase 9 — Portfolio and networking tools
 

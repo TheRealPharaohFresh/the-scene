@@ -16,6 +16,9 @@ const MemberProfile = lazy(() => import("../features/auth/discovery/MemberProfil
 const Forum = lazy(() => import("../features/community/Forum"));
 const ThreadPage = lazy(() => import("../features/community/ThreadPage"));
 const GroupPage = lazy(() => import("../features/community/GroupPage"));
+const Opportunities = lazy(() => import("../features/community/Opportunities"));
+const BusinessPage = lazy(() => import("../features/community/Business"));
+const Admin = lazy(() => import("../features/community/Admin"));
 const Premium = lazy(() => import("../features/community/Premium"));
 const Discover = lazy(() => import("../features/auth/discovery/Discover"));
 
@@ -176,6 +179,30 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Premium />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/opportunities"
+              element={
+                <ProtectedRoute>
+                  <Opportunities />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/business"
+              element={
+                <ProtectedRoute>
+                  <BusinessPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <Admin />
                 </ProtectedRoute>
               }
             />

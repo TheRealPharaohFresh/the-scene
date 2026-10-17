@@ -54,7 +54,7 @@ export type GroupEvent = {
   stateCode: string;
 };
 
-export type ReportTarget = "thread" | "reply" | "group" | "event" | "member";
+export type ReportTarget = "thread" | "reply" | "group" | "event" | "member" | "listing";
 
 type Firestore_ = typeof import("firebase/firestore");
 type Context = { db: Firestore; uid: string; fs: Firestore_ };
