@@ -22,6 +22,7 @@ type InputBaseProps = {
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  maxLength?: number;
 };
 
 function InputField({
@@ -30,6 +31,7 @@ function InputField({
   onChange,
   placeholder,
   disabled,
+  maxLength,
   name,
 }: InputBaseProps & { name: string }) {
   return (
@@ -41,6 +43,7 @@ function InputField({
         onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
         placeholder={placeholder}
         disabled={disabled}
+        maxLength={maxLength}
         style={inputStyle}
       />
     </label>
@@ -53,6 +56,7 @@ function TextAreaField({
   onChange,
   placeholder,
   disabled,
+  maxLength,
   name,
   rows = 6,
 }: InputBaseProps & { name: string; rows?: number }) {
@@ -65,6 +69,7 @@ function TextAreaField({
         onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onChange(event.target.value)}
         placeholder={placeholder}
         disabled={disabled}
+        maxLength={maxLength}
         rows={rows}
         style={{ ...inputStyle, minHeight: 140, resize: "vertical" }}
       />
@@ -88,7 +93,7 @@ export function SocialMediaInput(props: InputBaseProps & { name: string }) {
   return <InputField {...props} />;
 }
 
-export function BioInput({ label, value, onChange, placeholder, disabled }: InputBaseProps) {
+export function BioInput({ label, value, onChange, placeholder, disabled, maxLength }: InputBaseProps) {
   return (
     <TextAreaField
       name="bio-input"
@@ -97,6 +102,7 @@ export function BioInput({ label, value, onChange, placeholder, disabled }: Inpu
       onChange={onChange}
       placeholder={placeholder}
       disabled={disabled}
+      maxLength={maxLength}
       rows={6}
     />
   );

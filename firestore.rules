@@ -10,72 +10,270 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
-    function isExistingConversationMember() {
-      return signedIn() && request.auth.uid in resource.data.memberIds;
+    function validLink(value) {
+      return value is string
+        && value.size() <= 2048
+        && (value == '' || value.matches('https://.*') || value.matches('http://.*'));
     }
 
-    function isNewConversationMember() {
-      return signedIn() && request.auth.uid in request.resource.data.memberIds;
+    function validRoles(category, roles) {
+      return roles is list
+        && roles.size() <= 20
+        && roles.toSet().size() == roles.size()
+        && (
+          (category == 'Music' && roles.hasOnly([
+            'Producer', 'Songwriter', 'Artist', 'DJ', 'Audio Engineer', 'Mix Engineer',
+            'Mastering Engineer', 'Music Supervisor', 'A&R', 'Manager', 'Publisher'
+          ]))
+          || (category == 'Television' && roles.hasOnly([
+            'Actor', 'Director', 'Writer', 'Producer', 'Editor', 'Cinematographer', 'Showrunner'
+          ]))
+          || (category == 'Film' && roles.hasOnly([
+            'Actor', 'Director', 'Writer', 'Producer', 'Editor', 'Cinematographer', 'Composer',
+            'Production Designer', 'VFX Artist', 'Casting Director'
+          ]))
+          || (category == 'Comedy' && roles.hasOnly([
+            'Stand Up Comedian', 'Writer', 'Actor', 'Creator', 'Podcast Host'
+          ]))
+          || (category == 'Social Media' && roles.hasOnly([
+            'Creator', 'Influencer', 'Content Strategist', 'Community Manager', 'Video Editor',
+            'Social Media Manager'
+          ]))
+          || (category == 'Gaming' && roles.hasOnly([
+            'Streamer', 'Game Developer', 'Esports Athlete', 'Game Designer', 'Community Manager',
+            'Caster', 'Content Creator'
+          ]))
+          || (category == 'Theater' && roles.hasOnly([
+            'Actor', 'Director', 'Playwright', 'Stage Manager', 'Lighting Designer',
+            'Costume Designer', 'Choreographer'
+          ]))
+          || (category == 'Fashion' && roles.hasOnly([
+            'Model', 'Designer', 'Stylist', 'Photographer', 'Makeup Artist', 'Brand Strategist',
+            'Fashion Blogger'
+          ]))
+          || (category == 'Dance' && roles.hasOnly([
+            'Dancer', 'Choreographer', 'Instructor', 'Creative Director', 'Movement Coach'
+          ]))
+          || (category == 'Photography' && roles.hasOnly([
+            'Photographer', 'Photo Editor', 'Producer', 'Creative Director', 'Retoucher'
+          ]))
+          || (category == 'Other' && roles.hasOnly([
+            'Creative Consultant', 'Talent Manager', 'Event Producer', 'Publicist', 'Writer'
+          ]))
+        );
+    }
+
+    function validProfile(uid) {
+      let data = request.resource.data;
+      return data.keys().hasAll([
+          'userId',
+          'displayName',
+          'gender',
+          'entertainmentCategory',
+          'roles',
+          'bio',
+          'portfolioUrl',
+          'socialMedia',
+          'lookingFor',
+          'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'userId',
+          'displayName',
+          'nickname',
+          'gender',
+          'entertainmentCategory',
+          'roles',
+          'bio',
+          'stateCode',
+          'city',
+          'location',
+          'portfolioUrl',
+          'socialMedia',
+          'lookingFor',
+          'createdAt',
+          'profilePhotoUrl',
+          'coverPhotoUrl'
+        ])
+        && data.userId == uid
+        && data.displayName is string
+        && data.displayName.size() <= 50
+        && (!('nickname' in data) || (data.nickname is string && data.nickname.size() <= 50))
+        && data.gender in ['Male', 'Female', 'Non-binary', 'Prefer not to say']
+        && data.entertainmentCategory in [
+          'Music',
+          'Television',
+          'Film',
+          'Comedy',
+          'Social Media',
+          'Gaming',
+          'Theater',
+          'Fashion',
+          'Dance',
+          'Photography',
+          'Other'
+        ]
+        && validRoles(data.entertainmentCategory, data.roles)
+        && data.bio is string
+        && data.bio.size() <= 1500
+        && (!('stateCode' in data) || data.stateCode in [
+          '',
+          'AL',
+          'AK',
+          'AZ',
+          'AR',
+          'CA',
+          'CO',
+          'CT',
+          'DE',
+          'DC',
+          'FL',
+          'GA',
+          'HI',
+          'ID',
+          'IL',
+          'IN',
+          'IA',
+          'KS',
+          'KY',
+          'LA',
+          'ME',
+          'MD',
+          'MA',
+          'MI',
+          'MN',
+          'MS',
+          'MO',
+          'MT',
+          'NE',
+          'NV',
+          'NH',
+          'NJ',
+          'NM',
+          'NY',
+          'NC',
+          'ND',
+          'OH',
+          'OK',
+          'OR',
+          'PA',
+          'RI',
+          'SC',
+          'SD',
+          'TN',
+          'TX',
+          'UT',
+          'VT',
+          'VA',
+          'WA',
+          'WV',
+          'WI',
+          'WY',
+          'AS',
+          'GU',
+          'MP',
+          'PR',
+          'UM',
+          'VI'
+        ])
+        && (!('city' in data) || (data.city is string && data.city.size() <= 100))
+        && (!('location' in data) || (data.location is string && data.location.size() <= 120))
+        && validLink(data.portfolioUrl)
+        && data.socialMedia is map
+        && data.socialMedia.keys().hasOnly(['instagram', 'tiktok', 'youtube', 'twitter', 'website'])
+        && (!('instagram' in data.socialMedia) || validLink(data.socialMedia.instagram))
+        && (!('tiktok' in data.socialMedia) || validLink(data.socialMedia.tiktok))
+        && (!('youtube' in data.socialMedia) || validLink(data.socialMedia.youtube))
+        && (!('twitter' in data.socialMedia) || validLink(data.socialMedia.twitter))
+        && (!('website' in data.socialMedia) || validLink(data.socialMedia.website))
+        && data.lookingFor is list
+        && data.lookingFor.size() <= 3
+        && data.lookingFor.toSet().size() == data.lookingFor.size()
+        && data.lookingFor.hasOnly(['Friends', 'Networking', 'Relationship'])
+        && data.createdAt is string
+        && data.createdAt.size() <= 40
+        && (!('profilePhotoUrl' in data) || validLink(data.profilePhotoUrl))
+        && (!('coverPhotoUrl' in data) || validLink(data.coverPhotoUrl));
     }
 
     match /users/{uid} {
-      allow read, create, update: if isOwner(uid);
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'username',
+          'email',
+          'firstName',
+          'lastName',
+          'adultAttested',
+          'adultAttestedAt',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.uid == uid
+        && request.resource.data.username is string
+        && request.resource.data.username.size() <= 30
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254
+        && request.resource.data.firstName is string
+        && request.resource.data.firstName.size() <= 80
+        && request.resource.data.lastName is string
+        && request.resource.data.lastName.size() <= 80
+        && request.resource.data.adultAttested == true
+        && request.resource.data.adultAttestedAt == request.time
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'firstName', 'lastName', 'updatedAt'])
+        && request.resource.data.username is string
+        && request.resource.data.username.size() <= 30
+        && request.resource.data.firstName is string
+        && request.resource.data.firstName.size() <= 80
+        && request.resource.data.lastName is string
+        && request.resource.data.lastName.size() <= 80
+        && request.resource.data.updatedAt == request.time;
       allow delete: if false;
     }
 
     match /profiles/{uid} {
-      allow read: if signedIn();
-      allow create, update: if isOwner(uid);
-      allow delete: if isOwner(uid);
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && validProfile(uid);
+      allow update: if isOwner(uid)
+        && validProfile(uid)
+        && (!('createdAt' in resource.data) || request.resource.data.createdAt == resource.data.createdAt);
+      allow delete: if false;
     }
 
     match /likes/{likeId} {
-      allow read: if signedIn() && (
-        resource.data.fromUid == request.auth.uid ||
-        resource.data.toUid == request.auth.uid
-      );
-      allow create: if signedIn() && request.resource.data.fromUid == request.auth.uid;
-      allow delete: if signedIn() && resource.data.fromUid == request.auth.uid;
-      allow update: if false;
+      allow read, write: if false;
     }
 
     match /matches/{matchId} {
-      allow read: if signedIn() && request.auth.uid in resource.data.memberIds;
-      allow write: if false;
+      allow read, write: if false;
     }
 
     match /conversations/{conversationId} {
-      allow read, update: if isExistingConversationMember();
-      allow create: if isNewConversationMember();
-      allow delete: if false;
+      allow read, write: if false;
 
       match /messages/{messageId} {
-        allow read: if isExistingConversationMember();
-        allow create: if isExistingConversationMember()
-          && request.resource.data.senderUid == request.auth.uid;
-        allow update, delete: if false;
+        allow read, write: if false;
       }
     }
 
     match /notifications/{uid}/items/{notificationId} {
-      allow read, update, delete: if isOwner(uid);
-      allow create: if false;
+      allow read, write: if false;
     }
 
     match /subscriptions/{uid} {
-      allow read: if isOwner(uid);
-      allow write: if false;
+      allow read, write: if false;
     }
 
     match /reports/{reportId} {
-      allow create: if signedIn() && request.resource.data.reporterUid == request.auth.uid;
-      allow read, update, delete: if false;
+      allow read, write: if false;
     }
 
     match /blocks/{blockId} {
-      allow read, delete: if signedIn() && resource.data.blockerUid == request.auth.uid;
-      allow create: if signedIn() && request.resource.data.blockerUid == request.auth.uid;
-      allow update: if false;
+      allow read, write: if false;
     }
   }
 }

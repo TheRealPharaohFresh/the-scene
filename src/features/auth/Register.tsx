@@ -10,20 +10,28 @@ export default function Register() {
 	const [firstName, setFirstName] = useState('');
 	const [lastName, setLastName] = useState('');
 	const [password, setPassword] = useState('');
+	const [adultAttested, setAdultAttested] = useState(false);
+	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState('');
 	const navigate = useNavigate();
 	
 	const handleRegister = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setError('');
+		if (submitting) return;
 		
 		if (!username || !email || !firstName || !lastName || !password) {
 			setError('Please fill in all fields.');
 			return;
 		}
+		if (!adultAttested) {
+			setError('You must confirm that you are at least 18 to create an account.');
+			return;
+		}
 
 		try {
-			await registerUser({ username, email, firstName, lastName, password });
+			setSubmitting(true);
+			await registerUser({ username, email, firstName, lastName, password, adultAttested });
 			navigate('/create-profile');
 			setUsername('');
 			setEmail('');
@@ -32,6 +40,8 @@ export default function Register() {
 			setPassword('');
 		} catch (registerError) {
 			setError(registerError instanceof Error ? registerError.message : 'Registration failed.');
+		} finally {
+			setSubmitting(false);
 		}
 	}
 	return (
@@ -67,6 +77,10 @@ export default function Register() {
 								value={username}
 								onChange={(e) => setUsername(e.target.value)}
 								placeholder="Username"
+								aria-label="Username"
+								maxLength={30}
+								required
+								autoComplete="username"
 								style={{
 									display: 'block',
 									width: '100%',
@@ -84,6 +98,9 @@ export default function Register() {
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
 								placeholder="Email"
+								aria-label="Email"
+								autoComplete="email"
+								required
 								style={{
 									display: 'block',
 									width: '100%',
@@ -101,6 +118,9 @@ export default function Register() {
 								value={firstName}
 								onChange={(e) => setFirstName(e.target.value)}
 								placeholder="First Name"
+								aria-label="First name"
+								maxLength={80}
+								required
 								style={{
 									display: 'block',
 									width: '100%',
@@ -118,6 +138,9 @@ export default function Register() {
 								value={lastName}
 								onChange={(e) => setLastName(e.target.value)}
 								placeholder="Last Name"
+								aria-label="Last name"
+								maxLength={80}
+								required
 								style={{
 									display: 'block',
 									width: '100%',
@@ -135,6 +158,10 @@ export default function Register() {
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
 								placeholder="Password"
+								aria-label="Password"
+								autoComplete="new-password"
+								minLength={6}
+								required
 								style={{
 									display: 'block',
 									width: '100%',
@@ -147,10 +174,19 @@ export default function Register() {
 									outline: 'none'
 								}}
 							/>
+							<label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 16 }}>
+								<input
+									type="checkbox"
+									checked={adultAttested}
+									onChange={(e) => setAdultAttested(e.target.checked)}
+									required
+								/>
+								<span>I confirm that I am at least 18 years old.</span>
+							</label>
 							<div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
-								<SubmitButton/>
+								<SubmitButton disabled={submitting}>{submitting ? 'Creating account...' : 'Create account'}</SubmitButton>
 							</div>
-							{error ? <p style={{ color: '#F7326D', marginTop: 12 }}>{error}</p> : null}
+							{error ? <p role="alert" style={{ color: '#F7326D', marginTop: 12 }}>{error}</p> : null}
 							<p>Already have an account? <Link to="/login" style={{ color: '#F7326D', textDecoration: 'underline' }}>Login</Link></p>
 						</form>
 					</div>

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { LoginButton, RegisterButton } from "../../components/ui/Button";
 import { useNavigate } from "react-router-dom";
-import { loginUser, hasCompletedProfile } from "./authService";
+import { loginUser, sendPasswordReset } from "./authService";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -10,12 +10,15 @@ export default function Login() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetMessage, setResetMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setResetMessage("");
+    if (submitting) return;
 
     if (!email || !password) {
       setError("Please enter both email and password.");
@@ -23,23 +26,36 @@ export default function Login() {
     }
 
     try {
-      await loginUser({ email, password });
-      const destination = hasCompletedProfile() ? "/dashboard" : "/create-profile";
+      setSubmitting(true);
+      const user = await loginUser({ email, password });
+      const destination = user.profileComplete ? "/dashboard" : "/create-profile";
       navigate(destination, { replace: true });
     } catch (error) {
       setError(error instanceof Error ? error.message : "Login failed.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleForgotPassword = (e: React.FormEvent) => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetEmail) {
-      setResetMessage("Please enter your email address.");
+    setError("");
+    setResetMessage("");
+    if (sendingReset) return;
+    if (!resetEmail.trim()) {
+      setError("Please enter your email address.");
       return;
     }
 
-    setResetMessage(`Password reset link sent to ${resetEmail}.`);
-    setResetEmail("");
+    try {
+      setSendingReset(true);
+      await sendPasswordReset(resetEmail);
+      setResetMessage("If an account with that email exists, a password reset email has been sent.");
+    } catch (resetError) {
+      setError(resetError instanceof Error ? resetError.message : "Unable to send a password reset email.");
+    } finally {
+      setSendingReset(false);
+    }
   };
   const handleRegisterRedirect = () => {
     navigate("/register");
@@ -83,6 +99,9 @@ export default function Login() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
+            aria-label="Email"
+            autoComplete="email"
+            required
             style={{
               display: "block",
               width: "100%",
@@ -100,6 +119,9 @@ export default function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
+            aria-label="Password"
+            autoComplete="current-password"
+            required
             style={{
               display: "block",
               width: "100%",
@@ -120,7 +142,7 @@ export default function Login() {
               marginTop: 8,
             }}
           >
-            <LoginButton />
+            <LoginButton disabled={submitting}>{submitting ? "Signing in..." : "Login"}</LoginButton>
             <RegisterButton onClick={handleRegisterRedirect} />
           </div>
         </form>
@@ -148,6 +170,9 @@ export default function Login() {
               value={resetEmail}
               onChange={(e) => setResetEmail(e.target.value)}
               placeholder="Enter your email"
+              aria-label="Email for password reset"
+              autoComplete="email"
+              required
               style={{
                 display: "block",
                 width: "100%",
@@ -162,6 +187,7 @@ export default function Login() {
             />
             <button
               type="submit"
+              disabled={sendingReset}
               style={{
                 padding: "8px 12px",
                 borderRadius: 999,
@@ -170,13 +196,13 @@ export default function Login() {
                 border: "none",
               }}
             >
-              Send reset link
+              {sendingReset ? "Sending..." : "Send reset link"}
             </button>
           </form>
         ) : null}
 
         {error ? (
-          <p style={{ color: "#F7326D", marginTop: 12 }}>{error}</p>
+          <p role="alert" style={{ color: "#F7326D", marginTop: 12 }}>{error}</p>
         ) : null}
         {resetMessage ? (
           <p style={{ color: "#F5F4F2", marginTop: 12 }}>{resetMessage}</p>

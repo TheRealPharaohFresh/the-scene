@@ -1,111 +1,443 @@
-import { useEffect, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ProfileCard from "./ProfileCard";
+import type { UserProfile } from "../../../types/profile";
 import { getCurrentUserId } from "../authService";
 import { fetchUserProfile } from "../../../services/firebase";
-import type { UserProfile } from "../../../types/profile";
+import { normalizeProfileUrl } from "../validation";
 
-export default function Profile() {
+type Props = {
+  profile?: UserProfile | null;
+};
+
+export default function ProfilePage({ profile: initialProfile }: Props) {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [profile, setProfile] = useState<UserProfile | null | undefined>(initialProfile);
+  const [loadError, setLoadError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
+    if (initialProfile !== undefined) return;
     const userId = getCurrentUserId();
     if (!userId) {
       navigate("/login");
       return;
     }
 
-    fetchUserProfile(userId)
-      .then((profileData) => {
-        if (!profileData) {
-          setError("No profile was found. Please create or edit your profile.");
-          return;
+    let mounted = true;
+    void fetchUserProfile(userId)
+      .then((loadedProfile) => {
+        if (mounted) setProfile(loadedProfile);
+      })
+      .catch((error: unknown) => {
+        if (mounted) {
+          setLoadError(error instanceof Error ? error.message : "Unable to load your profile.");
         }
-
-        setProfile(profileData);
-      })
-      .catch(() => {
-        setError("Unable to load your profile. Please try again.");
-      })
-      .finally(() => {
-        setLoading(false);
       });
-  }, [navigate]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [initialProfile, navigate, retryCount]);
+
+  const location = useMemo(() => {
+    if (!profile) return "Location not provided";
+    if (profile.city && profile.stateCode) {
+      return `${profile.city}, ${profile.stateCode}`;
+    }
+
+    return profile.location || "Location not provided";
+  }, [profile]);
+
+  if (profile === undefined) {
+    return (
+      <div role={loadError ? "alert" : "status"} style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+        <div style={{ color: "#F5F4F2" }}>{loadError || "Loading profile…"}</div>
+        {loadError ? (
+          <button type="button" onClick={() => { setLoadError(""); setRetryCount((count) => count + 1); }}>
+            Retry
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+        <div style={{ color: "#F5F4F2" }}>No profile found.</div>
+      </div>
+    );
+  }
+
+  const socialLinks = Object.entries(profile.socialMedia ?? {}).flatMap(([platform, value]) => {
+    const href = safeExternalUrl(value);
+    return href ? [{ platform, href }] : [];
+  });
+  const portfolioUrl = safeExternalUrl(profile.portfolioUrl);
 
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #050408 0%, #7727E9 45%, #F7326D 100%)",
-        padding: 24,
-        color: "#F5F4F2",
+        background:
+          "linear-gradient(135deg,#050408 0%,#7727E9 45%,#F7326D 100%)",
+        padding: "24px",
       }}
     >
       <div
         style={{
-          width: "100%",
-          maxWidth: 960,
+          maxWidth: "1200px",
           margin: "0 auto",
-          padding: 28,
-          borderRadius: 24,
-          background: "rgba(255,255,255,0.08)",
-          backdropFilter: "blur(18px)",
-          WebkitBackdropFilter: "blur(18px)",
-          border: "1px solid rgba(245,244,242,0.18)",
+          borderRadius: "28px",
+          overflow: "hidden",
+          background: "rgba(255,255,255,.08)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,.12)",
+          boxShadow: "0 10px 50px rgba(0,0,0,.35)",
         }}
       >
-        <div style={{ marginBottom: 24 }}>
-          <h1 style={{ margin: 0, fontSize: 34, fontWeight: 800 }}>My Profile</h1>
-          <p style={{ margin: "12px 0 0", opacity: 0.9 }}>
-            View your saved scene profile and share your entertainment identity.
-          </p>
+        {/* COVER */}
+
+        <div
+          style={{
+            height: "320px",
+            position: "relative",
+            background: profile.coverPhotoUrl
+              ? `url(${profile.coverPhotoUrl}) center/cover no-repeat`
+              : "linear-gradient(135deg,#7727E9 0%,#F7326D 100%)",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              left: 40,
+              bottom: -70,
+              width: 140,
+              height: 140,
+              borderRadius: "50%",
+              background: "#F5F4F2",
+              border: "5px solid #050408",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+            }}
+          >
+            {profile.profilePhotoUrl ? (
+              <img
+                src={profile.profilePhotoUrl}
+                alt="Profile"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : null}
+          </div>
         </div>
 
-        {loading ? (
-          <p style={{ opacity: 0.9 }}>Loading profile...</p>
-        ) : error ? (
-          <div style={{ display: "grid", gap: 18 }}>
-            <p style={{ opacity: 0.9 }}>{error}</p>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => navigate("/create-profile")}
+        <div
+          style={{
+            padding: "90px 32px 40px",
+            color: "#F5F4F2",
+          }}
+        >
+          {/* HEADER */}
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 24,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <h1
                 style={{
-                  borderRadius: 999,
-                  padding: "12px 18px",
-                  border: "1px solid rgba(245,244,242,0.3)",
-                  background: "rgba(255,255,255,0.1)",
-                  color: "#F5F4F2",
-                  cursor: "pointer",
+                  margin: 0,
+                  fontSize: "2.4rem",
+                  fontWeight: 800,
                 }}
               >
-                Create Profile
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard")}
+                {profile.displayName}
+              </h1>
+
+              <p
                 style={{
-                  borderRadius: 999,
-                  padding: "12px 18px",
-                  border: "1px solid rgba(245,244,242,0.3)",
-                  background: "transparent",
-                  color: "#F5F4F2",
-                  cursor: "pointer",
+                  marginTop: 8,
+                  opacity: 0.85,
+                  fontSize: "1rem",
                 }}
               >
-                Back to Dashboard
+                {location}
+              </p>
+
+              <p
+                style={{
+                  marginTop: 4,
+                  color: "#F7326D",
+                  fontWeight: 700,
+                }}
+              >
+                {profile.entertainmentCategory}
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                alignItems: "flex-start",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => navigate("/edit-profile")}
+                style={{
+                  padding: "14px 22px",
+                  borderRadius: "12px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: "#7727E9",
+                  color: "#fff",
+                  fontWeight: 700,
+                }}
+              >
+                Edit profile
               </button>
+              <button type="button" onClick={() => navigate("/dashboard")}>Dashboard</button>
             </div>
           </div>
-        ) : profile ? (
-          <ProfileCard profile={profile} />
-        ) : (
-          <p style={{ opacity: 0.9 }}>Your profile is not available yet.</p>
-        )}
+
+          {/* MAIN GRID */}
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+              gap: 28,
+              marginTop: 36,
+            }}
+          >
+            {/* SIDEBAR */}
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 20,
+              }}
+            >
+              <Card title="Roles">
+                <TagGroup values={profile.roles} />
+              </Card>
+
+              <Card title="Looking For">
+                <TagGroup values={profile.lookingFor} />
+              </Card>
+
+              <Card title="Social Media">
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  {socialLinks.length ? (
+                    socialLinks.map(({ platform, href }) => (
+                      <a
+                        key={platform}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: "#F5F4F2",
+                          textDecoration: "none",
+                        }}
+                      >
+                        {platform}
+                      </a>
+                    ))
+                  ) : (
+                    <span style={{ opacity: 0.7 }}>
+                      No social links added
+                    </span>
+                  )}
+                </div>
+              </Card>
+            </div>
+
+            {/* CONTENT */}
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 24,
+              }}
+            >
+              <Card title="About">
+                <p
+                  style={{
+                    lineHeight: 1.8,
+                    margin: 0,
+                  }}
+                >
+                  {profile.bio || "No bio yet."}
+                </p>
+              </Card>
+
+              {portfolioUrl && (
+                <Card title="Portfolio Link">
+                  <a
+                    href={portfolioUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: "#F7326D",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Open Portfolio
+                  </a>
+                </Card>
+              )}
+
+              <Card title="Creative Highlights">
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fill,minmax(160px,1fr))",
+                    gap: 16,
+                  }}
+                >
+                  <StatCard
+                    title="Category"
+                    value={profile.entertainmentCategory ?? "Not selected"}
+                  />
+
+                  <StatCard
+                    title="Roles"
+                    value={String(profile.roles.length)}
+                  />
+
+                  <StatCard
+                    title="Interests"
+                    value={String(profile.lookingFor.length)}
+                  />
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
+}
+
+/* COMPONENTS */
+
+function Card({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,.05)",
+        borderRadius: 18,
+        padding: 20,
+        border: "1px solid rgba(255,255,255,.08)",
+      }}
+    >
+      <h2
+        style={{
+          marginTop: 0,
+          marginBottom: 16,
+          color: "#F5F4F2",
+        }}
+      >
+        {title}
+      </h2>
+
+      {children}
+    </div>
+  );
+}
+
+function TagGroup({ values }: { values: string[] }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 10,
+        flexWrap: "wrap",
+      }}
+    >
+      {values.map((value) => (
+        <span
+          key={value}
+          style={{
+            padding: "8px 14px",
+            borderRadius: 999,
+            background: "#7727E9",
+            color: "#fff",
+            fontSize: ".85rem",
+          }}
+        >
+          {value}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+}: {
+  title: string;
+  value: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: 18,
+        borderRadius: 16,
+        background: "rgba(255,255,255,.05)",
+      }}
+    >
+      <div
+        style={{
+          opacity: 0.7,
+          fontSize: ".8rem",
+        }}
+      >
+        {title}
+      </div>
+
+      <div
+        style={{
+          fontSize: "1.2rem",
+          fontWeight: 700,
+          marginTop: 6,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function safeExternalUrl(value: string | undefined): string | null {
+  if (!value?.trim()) return null;
+  try {
+    return normalizeProfileUrl(value);
+  } catch {
+    return null;
+  }
 }

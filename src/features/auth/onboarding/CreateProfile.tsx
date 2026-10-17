@@ -4,7 +4,8 @@ import {
   entertainmentRoles,
   type EntertainmentCategory,
 } from "../../../data/entertainmentRoles";
-import { saveUserProfile } from "../../../services/firebase";
+import { usStates } from "../../../data/usStates";
+import { fetchUserProfile, saveUserProfile } from "../../../services/firebase";
 import {
   getCurrentUserId,
   hasCompletedProfile,
@@ -13,7 +14,6 @@ import {
 import type {
   GenderOption,
   LookingForOption,
-  SocialMediaLinks,
   UserProfile,
 } from "../../../types/profile";
 import { SubmitButton } from "../../../components/ui/Button";
@@ -28,7 +28,6 @@ import {
   RoleCheckbox,
   LookingForCheckbox,
 } from "../../../components/ui/Checkbox";
-import { State, City } from "country-state-city";
 
 const lookingForOptions: LookingForOption[] = [
   "Friends",
@@ -49,7 +48,11 @@ const socialFields = [
 
 type SocialFieldKey = (typeof socialFields)[number]["key"];
 
-export default function CreateProfile() {
+type CreateProfileProps = {
+  editMode?: boolean;
+};
+
+export default function CreateProfile({ editMode = false }: CreateProfileProps) {
   const navigate = useNavigate();
   const [nickname, setNickname] = useState("");
   const [gender, setGender] = useState<GenderOption>("Prefer not to say");
@@ -70,24 +73,21 @@ export default function CreateProfile() {
   });
   const [lookingFor, setLookingFor] = useState<LookingForOption[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(editMode);
   const [message, setMessage] = useState("");
+  const [profileLoadError, setProfileLoadError] = useState("");
+  const [profileLoadAttempt, setProfileLoadAttempt] = useState(0);
+  const [existingProfile, setExistingProfile] = useState<UserProfile | null>(null);
 
   const currentRoles = useMemo(
     () => (category ? entertainmentRoles[category] : []),
     [category],
   );
 
-  const states = useMemo(() => State.getStatesOfCountry("US"), []);
-
-  const cities = useMemo(() => {
-    if (!stateCode) return [];
-    return City.getCitiesOfState("US", stateCode);
-  }, [stateCode]);
-
   const selectedState = useMemo(
-  () => states.find((state) => state.isoCode === stateCode),
-  [states, stateCode]
-);
+    () => usStates.find((state) => state.isoCode === stateCode),
+    [stateCode],
+  );
 
   useEffect(() => {
     const userId = getCurrentUserId();
@@ -96,10 +96,54 @@ export default function CreateProfile() {
       return;
     }
 
-    if (hasCompletedProfile()) {
+    if (!editMode && hasCompletedProfile(userId)) {
       navigate("/dashboard");
+      return;
     }
-  }, [navigate]);
+
+    if (!editMode) return;
+
+    let mounted = true;
+    void fetchUserProfile(userId)
+      .then((profile) => {
+        if (!mounted) return;
+        if (!profile) {
+          setMessage("No saved profile was found to edit. Create your profile first.");
+          return;
+        }
+
+        setProfileLoadError("");
+        setExistingProfile(profile);
+        setNickname(profile.nickname ?? profile.displayName ?? "");
+        setGender(profile.gender);
+        setCategory(profile.entertainmentCategory ?? "");
+        setRoles(profile.roles ?? []);
+        setBio(profile.bio ?? "");
+        setStateCode(profile.stateCode ?? "");
+        setCity(profile.city ?? "");
+        setPortfolioUrl(profile.portfolioUrl ?? "");
+        setSocialMedia({
+          instagram: profile.socialMedia?.instagram ?? "",
+          tiktok: profile.socialMedia?.tiktok ?? "",
+          youtube: profile.socialMedia?.youtube ?? "",
+          twitter: profile.socialMedia?.twitter ?? "",
+          website: profile.socialMedia?.website ?? "",
+        });
+        setLookingFor(profile.lookingFor ?? []);
+      })
+      .catch((error: unknown) => {
+        if (mounted) {
+          setProfileLoadError(error instanceof Error ? error.message : "Unable to load your profile.");
+        }
+      })
+      .finally(() => {
+        if (mounted) setLoadingProfile(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [editMode, navigate, profileLoadAttempt]);
 
   const handleRoleToggle = (role: string) => {
     setRoles((current) =>
@@ -136,8 +180,10 @@ export default function CreateProfile() {
       setMessage("Please select an entertainment category.");
       return;
     }
+    if (saving) return;
 
     const profile: UserProfile = {
+      ...existingProfile,
       userId,
       displayName: nickname || "",
       nickname: nickname || undefined,
@@ -145,21 +191,23 @@ export default function CreateProfile() {
       entertainmentCategory: category,
       roles,
       bio,
-      location: `${city}, ${selectedState?.name ?? ""}`,
-      city,
+      location: [city.trim(), selectedState?.isoCode].filter(Boolean).join(", "),
+      city: city.trim(),
       stateCode: selectedState?.isoCode ?? "",
       portfolioUrl,
-      socialMedia: socialMedia as SocialMediaLinks,
+      socialMedia,
       lookingFor,
-      createdAt: new Date().toISOString(),
+      createdAt: existingProfile?.createdAt || new Date().toISOString(),
     };
 
     try {
       setSaving(true);
       await saveUserProfile(userId, profile);
       markProfileComplete();
-      setMessage("Profile saved. Redirecting to your dashboard...");
-      setTimeout(() => navigate("/dashboard"), 750);
+      setMessage(editMode ? "Profile updated." : "Profile saved. Redirecting to your dashboard...");
+      if (!editMode) {
+        setTimeout(() => navigate("/dashboard"), 750);
+      }
     } catch (error) {
       console.error("CreateProfile save error:", error);
       setMessage(error instanceof Error ? error.message : "Unable to save profile. Please try again.");
@@ -167,6 +215,34 @@ export default function CreateProfile() {
       setSaving(false);
     }
   };
+
+  if (loadingProfile) {
+    return <div role="status" style={{ minHeight: "100vh", display: "grid", placeItems: "center", color: "#F5F4F2" }}>Loading profile…</div>;
+  }
+
+  if (editMode && !existingProfile) {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeContent: "center", gap: 16, color: "#F5F4F2" }}>
+        <p role={profileLoadError ? "alert" : "status"}>
+          {profileLoadError || message || "Your profile could not be loaded."}
+        </p>
+        {profileLoadError ? (
+          <button
+            type="button"
+            onClick={() => {
+              setProfileLoadError("");
+              setMessage("");
+              setLoadingProfile(true);
+              setProfileLoadAttempt((attempt) => attempt + 1);
+            }}
+          >
+            Retry
+          </button>
+        ) : null}
+        <button type="button" onClick={() => navigate("/dashboard")}>Back to dashboard</button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -200,7 +276,7 @@ export default function CreateProfile() {
           }}
         >
           <h1 style={{ margin: 0, fontSize: 34, fontWeight: 800 }}>
-            Create your profile
+            {editMode ? "Edit your profile" : "Create your profile"}
           </h1>
           <p style={{ margin: 0, opacity: 0.9 }}>
             Add a nickname, select your entertainment path, and tell the
@@ -215,6 +291,7 @@ export default function CreateProfile() {
               value={nickname}
               onChange={setNickname}
               placeholder="Preferred name"
+              maxLength={50}
             />
             <div
               style={{
@@ -283,13 +360,14 @@ export default function CreateProfile() {
                 if (value.length <= 1500) setBio(value);
               }}
               placeholder="Tell people who you are, what you do, and what you are looking for."
+              maxLength={1500}
             />
 
             <div
               style={{
                 display: "grid",
                 gap: 16,
-                gridTemplateColumns: "1fr 1fr",
+                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
               }}
             >
               <div style={{ display: "grid", gap: 12 }}>
@@ -301,7 +379,7 @@ export default function CreateProfile() {
                     fontWeight: 600,
                   }}
                 >
-                  State
+                  State or territory
                   <select
                     value={stateCode}
                     onChange={(e) => {
@@ -318,7 +396,7 @@ export default function CreateProfile() {
                   >
                     <option value="">Select State</option>
 
-                    {states.map((state) => (
+                    {usStates.map((state) => (
                       <option key={state.isoCode} value={state.isoCode}>
                         {state.name}
                       </option>
@@ -335,10 +413,14 @@ export default function CreateProfile() {
                   }}
                 >
                   City
-                  <select
+                  <input
+                    type="text"
                     value={city}
-                    onChange={(e) => setCity(e.target.value)}
+                    onChange={(event) => setCity(event.target.value)}
                     disabled={!stateCode}
+                    maxLength={100}
+                    placeholder="Enter a city"
+                    aria-label="City"
                     style={{
                       padding: 12,
                       borderRadius: 10,
@@ -346,15 +428,7 @@ export default function CreateProfile() {
                       background: "rgba(255,255,255,0.08)",
                       color: "#fff",
                     }}
-                  >
-                    <option value="">Select City</option>
-
-                    {cities.map((cityOption) => (
-                      <option key={cityOption.name} value={cityOption.name}>
-                        {cityOption.name}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </label>
               </div>
 
@@ -363,6 +437,7 @@ export default function CreateProfile() {
                 value={portfolioUrl}
                 onChange={setPortfolioUrl}
                 placeholder="https://yourportfolio.com"
+                maxLength={2048}
               />
             </div>
           </section>
@@ -378,6 +453,7 @@ export default function CreateProfile() {
                   value={socialMedia[key]}
                   onChange={(value) => handleSocialChange(key, value)}
                   placeholder={placeholder}
+                  maxLength={2048}
                 />
               ))}
             </div>
@@ -407,11 +483,11 @@ export default function CreateProfile() {
               flexWrap: "wrap",
             }}
           >
-            <SubmitButton />
+            <SubmitButton disabled={saving}>{saving ? "Saving..." : editMode ? "Save changes" : "Save profile"}</SubmitButton>
             {saving ? (
               <span style={{ opacity: 0.9 }}>Saving profile...</span>
             ) : null}
-            {message ? <span style={{ opacity: 0.85 }}>{message}</span> : null}
+            {message ? <span role="status" style={{ opacity: 0.85 }}>{message}</span> : null}
           </div>
         </form>
       </div>

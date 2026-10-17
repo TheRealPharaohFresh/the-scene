@@ -1,193 +1,124 @@
 # The Scene 🎬🎵
 
-## Connecting Entertainment Creatives
+## Connecting entertainment creatives
 
-The Scene is a networking and dating platform built specifically for professionals in the entertainment industry. It is designed to help creatives connect, collaborate, network, and build meaningful relationships within the worlds of music, film, television, comedy, gaming, fashion, photography, and other creative fields.
+The Scene is an early-stage web app for adults in the entertainment industry. Its current implemented scope is account registration/sign-in, a first-party profile onboarding/view/edit flow, and a protected dashboard. It is not yet a discovery, dating/matching, or messaging product: those screens/services are absent, and profiles are private to their owners in the checked-in Firestore rules.
 
-Unlike traditional dating apps, The Scene focuses on the entertainment ecosystem by allowing users to showcase their creative careers, portfolios, skills, and industry experience while connecting with people who share similar passions and goals.
+## Current capabilities and limitations
 
----
+- **Implemented foundation:** core email/password auth flows, profile onboarding/view/edit, owner-only profile persistence/rules, and input validation. **Locally verified:** production build, lint, and 11 focused unit tests; backend behavior still needs emulator tests.
+- **Not done:** Firebase emulator/rules integration tests, public discovery, likes/matching, blocking/reporting/moderation, messaging/notifications, account deletion, legal/support content, and production deployment. See [`ROADMAP.md`](./ROADMAP.md) for the phase-by-phase checklist and launch gates.
+- Firebase email/password registration and login.
+- Registration requires a self-attestation that the user is at least 18. This is **not** identity or age verification and needs owner/legal review before launch.
+- Firebase auth-state restore, profile-completion lookup, sign-out, and Firebase password-reset email flow.
+- Profile create, view, and edit for nickname, gender option, entertainment category/roles, bio, optional entered city/selected US state or territory, portfolio/social URLs, and connection preferences.
+- Profile URL input is normalized to HTTP(S); unsafe protocols are rejected. Profile saves validate ownership and bounded field lengths.
+- Firestore is the primary profile store when configured. Firestore errors are shown instead of being presented as successful LocalStorage saves. LocalStorage is only a compatibility fallback when Firebase is not configured.
+- Profile photos and cover photos have no upload UI. Cloud Storage rules currently deny all access; enabling uploads requires owner approval, Storage/billing setup, validation, and tested upload/removal behavior.
+- Profiles are readable only by their owner under the checked-in rules. This intentionally prevents discovery until a separate public-profile/privacy model exists.
+- Likes, matches, conversations, messages, notifications, subscriptions, reports, and blocks are not implemented; their Firestore rules deny client access.
+- No account deletion, terms/privacy/community-guideline/support pages, moderation workflow, or production deployment is implemented.
+- Capacitor is deferred.
 
-## 🚀 Vision
+See [`ROADMAP.md`](./ROADMAP.md) for the audited status matrix, phase gates, exact blockers, and owner actions.
 
-The goal of The Scene is to become a centralized community where entertainment professionals can discover collaborators, industry connections, and potential relationships in a space built around creativity.
+## Stack
 
-Whether you are a producer looking for an artist, a filmmaker looking for talent, a comedian looking for collaborators, or a creative looking for meaningful connections, The Scene brings the entertainment community together.
+- React, TypeScript, Vite, React Router
+- Firebase Authentication and Cloud Firestore
+- Firebase Cloud Storage is not enabled by app rules or the profile UI
+- The profile form uses a small local US state/territory list and a free-text city field to avoid bundling a global city database.
+- Vitest covers focused profile input validation; Firebase emulator integration/rules tests are not yet present
 
----
+## Local setup
 
-## ✨ Core Features
+Requirements: Node.js compatible with the installed Vite/Vitest versions and npm.
 
-### Authentication
-- User registration and login
-- Secure authentication flow structure
-- Age verification support
-- Protected account routing
+```bash
+npm ci
+cp .env.example .env
+npm run dev
+```
 
-### Creative Onboarding
-Users can identify their entertainment background and select roles across industries such as:
-
-- Music
-- Television
-- Film
-- Comedy
-- Gaming
-- Fashion
-- Photography
-- Theater
-- Other creative industries
-
-### Creative Profiles
-Implemented and planned profile features include:
-- Profile creation onboarding flow
-- Bio and entertainment background details
-- Entertainment categories and role selection
-- Location selection with US state and city support
-- Portfolio and social link fields
-- Looking-for preferences
-- Profile display page and dashboard redirect flow
-
----
-
-## 🔥 Planned Features
-
-- Creative discovery system
-- Matching algorithm
-- Swipe-based discovery
-- Advanced search filters
-- Messaging system
-- Profile visitors
-- Premium subscription features
-- Portfolio showcase
-- Industry networking tools
-
----
-
-## 🛠 Tech Stack
-
-### Frontend
-- React
-- TypeScript
-- Vite
-- React Router
-- CSS
-
-### Backend
-- Firebase Authentication
-- Firestore Database
-- Cloud Storage
-- LocalStorage is used only for a small compatibility fallback when Firebase is unavailable
-
-### Mobile Expansion
-- Capacitor for iOS and Android deployment
-
----
-
-## ✅ What We Completed So Far
-
-Current progress includes:
-- Added a first-time profile onboarding flow at `src/features/auth/onboarding/CreateProfile.tsx`
-- Built the profile display page under `src/features/auth/profile/Profile.tsx`
-- Created localStorage-based profile persistence in `src/services/firebase.ts`
-- Implemented profile completion gating in `src/features/auth/authService.ts`
-- Built modular shared form controls in `src/components/ui/Input.tsx`, `src/components/ui/Select.tsx`, and `src/components/ui/Checkbox.tsx`
-- Implemented nickname, gender, entertainment category, dynamic role selection, bio, location, portfolio, social links, and looking-for options
-- Added US state and city selection support in the profile form using `country-state-city`
-- Added first-login routing logic so new users are redirected to profile setup and returning users go to `/dashboard`
-- Added registration error handling to `src/features/auth/Register.tsx`
-- Replaced prototype authentication with Firebase email/password authentication
-- Added Firebase auth-state listeners and singleton Firebase initialization
-- Added environment-based Firebase configuration and protected Storage rules
-- Added Firestore rules for users, profiles, and guarded future app collections
-- Temporarily disabled photo uploads until Cloud Storage is enabled and configured
-- Verified lint and production builds
-
----
-
-## 📂 Current Development Status
-
-Currently built:
-
-✅ React + TypeScript foundation  
-✅ Application architecture  
-✅ Splash screen experience  
-✅ Firebase email/password authentication
-✅ Registration workflow  
-✅ First-login profile onboarding  
-✅ Modular shared UI form components  
-✅ Firebase auth-state route guards
-✅ Firestore user/profile persistence
-⬜ Cloud Storage photo uploads (temporarily unavailable)
-⬜ User discovery and matching  
-⬜ Messaging system  
-⬜ Premium subscription features  
-
----
-
-## 🎯 Project Goal
-
-The Scene aims to bridge the gap between entertainment networking and modern social connection by creating a platform where creatives can meet, collaborate, and grow together.
-
----
-
-Built with React + TypeScript.
-
-## Firebase Setup
-
-The app uses Firebase Authentication and Cloud Firestore for its primary account and profile data. Copy the Firebase configuration into a `.env` file at the project root (see `.env.example`). The real `.env` file is ignored by git.
+Fill the Firebase client configuration values from an **owner-approved non-production Firebase project** before using live Authentication/Firestore. The app requires:
 
 - `VITE_FIREBASE_API_KEY`
 - `VITE_FIREBASE_AUTH_DOMAIN`
 - `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_STORAGE_BUCKET`
-- `VITE_FIREBASE_MESSAGING_SENDER_ID`
 - `VITE_FIREBASE_APP_ID`
-- `VITE_FIREBASE_MEASUREMENT_ID`
 
-### Create the Firebase services
+`VITE_FIREBASE_STORAGE_BUCKET` and `VITE_FIREBASE_MESSAGING_SENDER_ID` are optional. Storage is not used by the profile UI and the checked-in Storage rules deny access. `VITE_FIREBASE_MEASUREMENT_ID` is optional. `.env` is ignored by git; `.env.example` contains placeholders only. Do not put service-account credentials or other privileged secrets in Vite environment variables.
 
-In the Firebase Console for project `the-scene-fddae`:
+The Firebase owner must enable Email/Password Authentication and create the Firestore database in the selected project. The repository does not prove that Firebase services/rules are configured in any remote project.
 
-1. Enable **Authentication → Sign-in method → Email/Password**.
-2. Create **Build → Firestore Database** using the **Standard** edition and the default `(default)` database.
-3. Choose a database region and keep it consistent with future services where possible.
-4. Enable Cloud Storage only when the project is ready for the Blaze billing plan. Photo uploads are currently disabled in the app.
+## Emulator workflow
 
-Cloud Firestore creates collections and documents on the first write. The current app writes:
+The app can connect Auth and Firestore to local emulators when `VITE_USE_FIREBASE_EMULATORS=true`. Storage is not connected. Install/use the Firebase CLI separately; it is not a project dependency.
 
-```text
-users/{uid}
-profiles/{uid}
+For local emulator use, set dummy client values in the ignored `.env` (never real production configuration), for example:
+
+```dotenv
+VITE_FIREBASE_API_KEY=demo-api-key
+VITE_FIREBASE_AUTH_DOMAIN=localhost
+VITE_FIREBASE_PROJECT_ID=demo-the-scene
+VITE_FIREBASE_APP_ID=demo-app-id
+VITE_USE_FIREBASE_EMULATORS=true
 ```
 
-The planned data model includes:
-
-```text
-likes/{likeId}
-matches/{matchId}
-conversations/{conversationId}/messages/{messageId}
-notifications/{uid}/items/{notificationId}
-subscriptions/{uid}
-reports/{reportId}
-blocks/{blockId}
-```
-
-### Deploy security rules
-
-Install and authenticate with the Firebase CLI, then deploy the Firestore and Storage rules from this repository:
+In separate terminals:
 
 ```bash
-firebase login
-firebase deploy --only firestore,storage --project the-scene-fddae
+firebase emulators:start --only auth,firestore --project demo-the-scene
 npm run dev
 ```
 
-The rules are stored in `firestore.rules` and `storage.rules`. Firestore rules restrict account writes to the authenticated user, while future match, chat, notification, subscription, report, and block data has restrictive defaults until each feature is implemented.
+`firebase.json` configures Auth on port `9099` and Firestore on port `8080`, and points the emulator/CLI at `firestore.rules` and `firestore.indexes.json`. Do not run this workflow against a production project. The checked-in rules have **not** yet been validated with emulator tests.
 
-Cloud Storage uses `storage.cors.json` for browser origins. Apply it after installing Google Cloud CLI and creating the Storage bucket:
+## Commands
 
 ```bash
-gcloud storage buckets update gs://the-scene-fddae.firebasestorage.app --cors-file=storage.cors.json
+npm run dev       # Start Vite development server
+npm run build     # Type-check and create a production bundle
+npm run lint      # Run ESLint
+npm test          # Run focused Vitest unit tests
+npm run preview   # Preview the production bundle locally
 ```
 
-Until Storage is enabled and configured, users can create profiles without profile or cover photos. Photo uploads can be re-enabled later without changing the Firestore profile document shape.
+The current 11 profile-validation unit tests cover URL scheme handling, profile ownership, category-role and state-code validation, duplicate selections, bio length, and disabled inline-photo uploads. They do not replace Firebase auth, Firestore persistence, rules, browser, or end-to-end tests.
+
+## Dependency audit
+
+The non-forced `npm audit fix` updated semver-compatible dependencies, including React Router. The remaining audit currently reports 11 advisories (6 moderate, 5 high) through Firebase's nested `@grpc/grpc-js` and `undici` packages. npm's forced fix proposes downgrading Firebase to 9.14.0; that change was not applied. The exposure of those transitive packages in the browser runtime has not been assessed. Resolve and review the advisories before production launch; do not claim the dependency tree is vulnerability-free.
+
+## Data and security model in this repository
+
+- `users/{uid}` stores the owner's account/profile identity fields and adult self-attestation; reads are owner-only. Attestation is user-supplied, not independently verified.
+- `profiles/{uid}` stores the creative profile. Reads and writes are owner-only; Firestore rules bound fields and validate the current schema.
+- Firestore rules deny client access to future interaction/safety collections until trusted authorization and matching UI exist.
+- Storage rules deny all reads/writes until a reviewed upload flow and explicit owner setup are complete.
+- Profile completion is determined from the authenticated owner's Firestore profile document when Firebase is configured. UI route guards supplement backend rules; they are not security enforcement.
+- `firestore.indexes.json` is empty because the app currently issues no discovery/search queries requiring composite indexes.
+
+## Production change and rollback policy
+
+No production rules, indexes, data, Firebase settings, billing, or services were changed for this work. Never deploy rules or enable Storage/billing without explicit owner approval and a successful non-production emulator review.
+
+After approval, use an explicitly selected project and the approved Firebase CLI command, for example:
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes --project <approved-project-id>
+```
+
+The Storage rules deny all access; do not deploy or loosen them until the owner approves Storage setup and the upload flow is fully implemented/tested. Before any production change, save the currently deployed rules/index configuration. If validation fails after an approved deployment, restore the last reviewed rules from version control and re-run non-production emulator checks; do not make emergency production edits without the project owner.
+
+## Launch blockers
+
+Before a public launch, the owner must approve the age-assurance approach, legal/privacy/safety content, support contact, retention and deletion policy, moderation and incident response, and the production Firebase configuration. Engineering must complete and test privacy-safe discovery, mutual matching, blocking/reporting, trusted messaging/notifications, and account deletion before exposing user-generated profiles or contact.
+
+### What remains, in order
+
+1. Set up a dedicated non-production Firebase project/emulator workflow and pass Auth, profile persistence, and Firestore/Storage rules tests. No emulator-backed rules tests have been run yet.
+2. Get owner/legal decisions on age assurance, privacy/terms/safety content, support, retention, account deletion, and whether media uploads or paid subscriptions are in scope.
+3. Design and test a privacy-safe public profile projection and trusted backend authorization before implementing discovery, matching, blocking/reporting, or messaging.
+4. Finish accessibility and browser/network checks, assess and resolve the remaining Firebase transitive dependency advisories, and configure production monitoring/backups only after owner approval.
+5. Complete release review and obtain explicit deployment approval. Keep Capacitor deferred until the web product is release-ready.

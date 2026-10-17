@@ -1,8 +1,21 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { DiscoverButton } from "../../../components/ui/Button";
+import { LogoutButton } from "../../../components/ui/Button";
+import { logoutUser } from "../authService";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [logoutError, setLogoutError] = useState("");
+
+  const handleLogout = async () => {
+    setLogoutError("");
+    try {
+      await logoutUser();
+      navigate("/login", { replace: true });
+    } catch (error) {
+      setLogoutError(error instanceof Error ? error.message : "Unable to sign out.");
+    }
+  };
 
   return (
     <div
@@ -51,7 +64,7 @@ export default function Dashboard() {
           </button>
           <button
             type="button"
-            onClick={() => navigate("/create-profile")}
+            onClick={() => navigate("/edit-profile")}
             style={{
               borderRadius: 999,
               border: "1px solid rgba(245,244,242,0.2)",
@@ -64,7 +77,11 @@ export default function Dashboard() {
           >
             Edit your profile
           </button>
-          <DiscoverButton onClick={() => navigate("/")} />
+          <p style={{ margin: 0, opacity: 0.8 }}>
+            Discovery is not available yet. Profiles are currently private to their owners.
+          </p>
+          <LogoutButton onClick={handleLogout} />
+          {logoutError ? <p role="alert">{logoutError}</p> : null}
         </div>
       </div>
     </div>

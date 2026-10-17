@@ -1,12 +1,15 @@
 import './Button.css';
+import type { ReactNode } from 'react';
 
 type ButtonProps = {
   onClick?: () => void;
   type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
+  children?: ReactNode;
 };
 
-export function LoginButton({ onClick }: ButtonProps) {
-    return <button className="login-button" onClick={onClick} type="submit">Login</button>;
+export function LoginButton({ onClick, disabled, children }: ButtonProps) {
+    return <button className="login-button" onClick={onClick} type="submit" disabled={disabled}>{children ?? 'Login'}</button>;
 }
 
 export function RegisterButton({ onClick }: ButtonProps) {
@@ -17,8 +20,8 @@ export function LogoutButton({ onClick, }: ButtonProps) {
     return <button className="logout-button" onClick={onClick} type="button">Logout</button>;
 }
 
-export function SubmitButton({ onClick, }: ButtonProps) {
-    return <button className="submit-button" onClick={onClick} type="submit">Submit</button>;
+export function SubmitButton({ onClick, disabled, children }: ButtonProps) {
+    return <button className="submit-button" onClick={onClick} type="submit" disabled={disabled}>{children ?? 'Submit'}</button>;
 }
 
 export function CancelButton({ onClick}: ButtonProps) {
@@ -32,5 +35,3 @@ export function SendButton({ onClick, }: ButtonProps) {
 export function DiscoverButton({ onClick, }: ButtonProps) {
     return <button className="discover-button" onClick={onClick} type="button">Discover</button>;
 }
-
-
