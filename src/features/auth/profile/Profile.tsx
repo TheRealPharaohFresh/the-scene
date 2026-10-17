@@ -78,8 +78,7 @@ export default function ProfilePage({ profile: initialProfile }: Props) {
   return (
     <div
       style={{
-        minHeight: "100vh",
-        background:
+        minHeight: "100dvh",        background:
           "linear-gradient(135deg,#050408 0%,#7727E9 45%,#F7326D 100%)",
         padding: "24px",
       }}
@@ -204,7 +203,7 @@ export default function ProfilePage({ profile: initialProfile }: Props) {
               >
                 Edit profile
               </button>
-              <button type="button" onClick={() => navigate("/dashboard")}>Dashboard</button>
+              <button type="button" onClick={() => navigate("/discover")}>Discover</button>
             </div>
           </div>
 

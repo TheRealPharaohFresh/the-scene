@@ -14,6 +14,7 @@ import {
 import type {
   GenderOption,
   LookingForOption,
+  ShareableField,
   UserProfile,
 } from "../../../types/profile";
 import { SubmitButton } from "../../../components/ui/Button";
@@ -25,9 +26,11 @@ import {
 } from "../../../components/ui/Input";
 import { GenderSelect, CategorySelect } from "../../../components/ui/Select";
 import {
+  CheckboxItem,
   RoleCheckbox,
   LookingForCheckbox,
 } from "../../../components/ui/Checkbox";
+import { DEFAULT_SHARED_FIELDS, fetchPublicSettings } from "../../../services/publicProfiles";
 
 const lookingForOptions: LookingForOption[] = [
   "Friends",
@@ -52,6 +55,13 @@ type CreateProfileProps = {
   editMode?: boolean;
 };
 
+const shareOptions: { field: ShareableField; label: string }[] = [
+  { field: "bio", label: "My bio" },
+  { field: "location", label: "My city" },
+  { field: "lookingFor", label: "What I'm looking for" },
+  { field: "links", label: "My portfolio and social links" },
+];
+
 export default function CreateProfile({ editMode = false }: CreateProfileProps) {
   const navigate = useNavigate();
   const [nickname, setNickname] = useState("");
@@ -72,6 +82,8 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
     website: "",
   });
   const [lookingFor, setLookingFor] = useState<LookingForOption[]>([]);
+  const [discoverable, setDiscoverable] = useState(true);
+  const [shared, setShared] = useState<ShareableField[]>([...DEFAULT_SHARED_FIELDS]);
   const [saving, setSaving] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(editMode);
   const [message, setMessage] = useState("");
@@ -97,15 +109,15 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
     }
 
     if (!editMode && hasCompletedProfile(userId)) {
-      navigate("/dashboard");
+      navigate("/discover");
       return;
     }
 
     if (!editMode) return;
 
     let mounted = true;
-    void fetchUserProfile(userId)
-      .then((profile) => {
+    void Promise.all([fetchUserProfile(userId), fetchPublicSettings(userId)])
+      .then(([profile, savedSettings]) => {
         if (!mounted) return;
         if (!profile) {
           setMessage("No saved profile was found to edit. Create your profile first.");
@@ -114,6 +126,9 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
 
         setProfileLoadError("");
         setExistingProfile(profile);
+        // Profiles saved before discovery existed have no public copy; keep them hidden until the owner opts in.
+        setDiscoverable(savedSettings?.discoverable ?? false);
+        if (savedSettings) setShared(savedSettings.shared);
         setNickname(profile.nickname ?? profile.displayName ?? "");
         setGender(profile.gender);
         setCategory(profile.entertainmentCategory ?? "");
@@ -202,11 +217,11 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
 
     try {
       setSaving(true);
-      await saveUserProfile(userId, profile);
+      await saveUserProfile(userId, profile, { discoverable, shared });
       markProfileComplete();
-      setMessage(editMode ? "Profile updated." : "Profile saved. Redirecting to your dashboard...");
+      setMessage(editMode ? "Profile updated." : "Profile saved. Taking you to Discover...");
       if (!editMode) {
-        setTimeout(() => navigate("/dashboard"), 750);
+        setTimeout(() => navigate("/discover"), 750);
       }
     } catch (error) {
       console.error("CreateProfile save error:", error);
@@ -239,7 +254,7 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
             Retry
           </button>
         ) : null}
-        <button type="button" onClick={() => navigate("/dashboard")}>Back to dashboard</button>
+        <button type="button" onClick={() => navigate("/discover")}>Back to Discover</button>
       </div>
     );
   }
@@ -247,10 +262,11 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         background:
           "linear-gradient(135deg, #050408 0%, #7727E9 45%, #F7326D 100%)",
-        padding: 24,
+        padding: "max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))",
+        boxSizing: "border-box",
         color: "#F5F4F2",
       }}
     >
@@ -259,7 +275,8 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
           width: "100%",
           maxWidth: 980,
           margin: "0 auto",
-          padding: 28,
+          padding: "clamp(16px, 5vw, 28px)",
+          boxSizing: "border-box",
           borderRadius: 24,
           background: "rgba(255,255,255,0.08)",
           backdropFilter: "blur(18px)",
@@ -367,7 +384,7 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
               style={{
                 display: "grid",
                 gap: 16,
-                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
               }}
             >
               <div style={{ display: "grid", gap: 12 }}>
@@ -473,6 +490,39 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
                 />
               ))}
             </div>
+          </section>
+
+          <section style={{ marginBottom: 18 }}>
+            <h2 style={{ margin: "0 0 12px 0", fontSize: 22 }}>Visibility</h2>
+            <CheckboxItem
+              name="discoverable-checkbox"
+              label="Let other members find me in Discover"
+              checked={discoverable}
+              onChange={() => setDiscoverable((current) => !current)}
+            />
+            {discoverable ? (
+              <div style={{ marginTop: 10 }}>
+                <p style={{ margin: "0 0 6px", fontSize: 14 }}>
+                  Always shown: nickname, category, roles, and state. Choose what else members can see:
+                </p>
+                {shareOptions.map(({ field, label }) => (
+                  <CheckboxItem
+                    key={field}
+                    name={`share-${field}`}
+                    label={label}
+                    checked={shared.includes(field)}
+                    onChange={() =>
+                      setShared((current) =>
+                        current.includes(field) ? current.filter((item) => item !== field) : [...current, field],
+                      )
+                    }
+                  />
+                ))}
+              </div>
+            ) : null}
+            <p style={{ margin: "8px 0 0", opacity: 0.8, fontSize: 14 }}>
+              Your email and gender always stay private. You can change this any time.
+            </p>
           </section>
 
           <div

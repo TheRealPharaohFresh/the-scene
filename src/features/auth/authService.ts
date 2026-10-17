@@ -235,6 +235,7 @@ export async function loginUser(payload: LoginPayload) {
     const profileSnapshot = await getDoc(doc(client.firestore, "profiles", credential.user.uid));
     profileComplete = profileSnapshot.exists();
   } catch (error) {
+    console.error("Unable to verify profile completion with Firestore:", firebaseErrorCode(error), error);
     throw new Error("Signed in, but your profile status could not be verified. Check your connection and try again.", {
       cause: error,
     });

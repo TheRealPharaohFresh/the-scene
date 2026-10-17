@@ -196,6 +196,70 @@ service cloud.firestore {
         && (!('coverPhotoUrl' in data) || validLink(data.coverPhotoUrl));
     }
 
+    // Must mirror the owner's private profile, which is written in the same
+    // batch (getAfter) or already exists. This keeps the public copy limited to
+    // data the owner already validated, and rejects a public doc without a profile.
+    // Links are only present when shared, and must equal the private profile's links.
+    function validPublicLinks(data, privateData) {
+      return ('links' in data) == ('links' in data.shared)
+        && (!('links' in data)
+          || (data.links.keys().hasOnly(['portfolioUrl', 'socialMedia'])
+            && data.links.portfolioUrl == privateData.get('portfolioUrl', '')
+            && data.links.socialMedia == privateData.get('socialMedia', {})));
+    }
+
+    function validPublicProfile(uid) {
+      let data = request.resource.data;
+      let profilePath = /databases/$(database)/documents/profiles/$(uid);
+      return existsAfter(profilePath)
+        && data.keys().hasOnly([
+          'userId',
+          'displayName',
+          'entertainmentCategory',
+          'roles',
+          'bio',
+          'stateCode',
+          'city',
+          'lookingFor',
+          'discoverable',
+          'shared',
+          'links',
+          'createdAt',
+          'profilePhotoUrl',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'userId',
+          'displayName',
+          'entertainmentCategory',
+          'roles',
+          'bio',
+          'stateCode',
+          'city',
+          'lookingFor',
+          'discoverable',
+          'shared',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.userId == uid
+        && data.discoverable is bool
+        && data.shared is list
+        && data.shared.size() <= 4
+        && data.shared.hasOnly(['bio', 'location', 'lookingFor', 'links'])
+        && data.updatedAt == request.time
+        && data.displayName == getAfter(profilePath).data.displayName
+        && data.entertainmentCategory == getAfter(profilePath).data.entertainmentCategory
+        && data.roles == getAfter(profilePath).data.roles
+        && data.bio == ('bio' in data.shared ? getAfter(profilePath).data.bio : '')
+        && data.stateCode == getAfter(profilePath).data.get('stateCode', '')
+        && data.city == ('location' in data.shared ? getAfter(profilePath).data.get('city', '') : '')
+        && data.lookingFor == ('lookingFor' in data.shared ? getAfter(profilePath).data.lookingFor : [])
+        && validPublicLinks(data, getAfter(profilePath).data)
+        && data.createdAt == getAfter(profilePath).data.createdAt
+        && data.get('profilePhotoUrl', '') == getAfter(profilePath).data.get('profilePhotoUrl', '');
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid)
@@ -244,6 +308,28 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Public projection of a profile. Members read only documents whose owner
+    // opted in; queries must therefore filter on discoverable == true.
+    match /publicProfiles/{uid} {
+      allow read: if isOwner(uid)
+        || (signedIn() && resource.data.discoverable == true);
+      allow create, update: if isOwner(uid) && validPublicProfile(uid);
+      allow delete: if false;
+    }
+
+    // Private like/pass decisions. Only the owner can read or write them; mutual-match
+    // detection will need a trusted backend (see roadmap Phase 5) and is not implemented.
+    match /swipes/{uid}/items/{targetId} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && targetId != uid
+        && request.resource.data.keys().hasOnly(['targetId', 'action', 'createdAt'])
+        && request.resource.data.targetId == targetId
+        && request.resource.data.action in ['like', 'pass']
+        && request.resource.data.createdAt == request.time;
+      allow delete: if false;
+    }
+
     match /likes/{likeId} {
       allow read, write: if false;
     }
@@ -268,12 +354,169 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /reports/{reportId} {
-      allow read, write: if false;
+    // ---- Community: forum threads, groups, events, reports, blocks ----
+
+    function profilePath(uid) {
+      return /databases/$(database)/documents/profiles/$(uid);
     }
 
-    match /blocks/{blockId} {
-      allow read, write: if false;
+    // Author names are checked against the author's real profile so they cannot be spoofed.
+    function authorNameMatches(uid, name) {
+      return exists(profilePath(uid)) && name == get(profilePath(uid)).data.displayName;
+    }
+
+    function groupPath(gid) {
+      return /databases/$(database)/documents/groups/$(gid);
+    }
+
+    function isGroupMember(gid) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/groups/$(gid)/members/$(request.auth.uid));
+    }
+
+    function canSeeThread(thread) {
+      return thread.groupId == null || isGroupMember(thread.groupId);
+    }
+
+    match /threads/{threadId} {
+      allow read: if signedIn() && canSeeThread(resource.data);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['authorId', 'authorName', 'title', 'body', 'groupId', 'createdAt'])
+        && request.resource.data.authorId == request.auth.uid
+        && authorNameMatches(request.auth.uid, request.resource.data.authorName)
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 3
+        && request.resource.data.title.size() <= 140
+        && request.resource.data.body is string
+        && request.resource.data.body.size() >= 1
+        && request.resource.data.body.size() <= 5000
+        && (request.resource.data.groupId == null
+          || (request.resource.data.groupId is string && isGroupMember(request.resource.data.groupId)))
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
+
+      match /replies/{replyId} {
+        allow read: if signedIn() && canSeeThread(get(/databases/$(database)/documents/threads/$(threadId)).data);
+        allow create: if signedIn()
+          && canSeeThread(get(/databases/$(database)/documents/threads/$(threadId)).data)
+          && request.resource.data.keys().hasOnly(['authorId', 'authorName', 'body', 'createdAt'])
+          && request.resource.data.authorId == request.auth.uid
+          && authorNameMatches(request.auth.uid, request.resource.data.authorName)
+          && request.resource.data.body is string
+          && request.resource.data.body.size() >= 1
+          && request.resource.data.body.size() <= 3000
+          && request.resource.data.createdAt == request.time;
+        allow update: if false;
+        allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
+      }
+    }
+
+    match /groups/{gid} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['ownerId', 'name', 'description', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 3
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 600
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+
+      match /members/{uid} {
+        allow read: if isGroupMember(gid);
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['userId', 'displayName', 'role', 'joinedAt'])
+          && request.resource.data.userId == uid
+          && authorNameMatches(uid, request.resource.data.displayName)
+          && request.resource.data.joinedAt == request.time
+          && ((request.resource.data.role == 'member' && exists(groupPath(gid)))
+            || (request.resource.data.role == 'owner'
+              && existsAfter(groupPath(gid))
+              && getAfter(groupPath(gid)).data.ownerId == uid));
+        allow update: if false;
+        allow delete: if isOwner(uid) && resource.data.role != 'owner';
+      }
+
+      match /events/{eventId} {
+        allow read: if isGroupMember(gid);
+        allow create: if isGroupMember(gid)
+          && request.resource.data.keys().hasOnly(['hostId', 'hostName', 'title', 'description', 'kind', 'startsAt', 'city', 'stateCode', 'createdAt'])
+          && request.resource.data.hostId == request.auth.uid
+          && authorNameMatches(request.auth.uid, request.resource.data.hostName)
+          && request.resource.data.title is string
+          && request.resource.data.title.size() >= 3
+          && request.resource.data.title.size() <= 120
+          && request.resource.data.description is string
+          && request.resource.data.description.size() <= 1200
+          && request.resource.data.kind in ['Music video', 'Film shoot', 'Photo shoot', 'Audition / casting', 'Meetup', 'Other']
+          && request.resource.data.startsAt is timestamp
+          && request.resource.data.startsAt > request.time
+          && request.resource.data.city is string
+          && request.resource.data.city.size() <= 80
+          && request.resource.data.stateCode is string
+          && request.resource.data.stateCode.size() <= 4
+          && request.resource.data.createdAt == request.time;
+        allow update: if false;
+        allow delete: if isGroupMember(gid) && resource.data.hostId == request.auth.uid;
+
+        // Exact address: visible only to the host and members who RSVP'd "going".
+        match /private/{detailId} {
+          allow read: if isGroupMember(gid)
+            && (get(/databases/$(database)/documents/groups/$(gid)/events/$(eventId)).data.hostId == request.auth.uid
+              || (exists(/databases/$(database)/documents/groups/$(gid)/events/$(eventId)/rsvps/$(request.auth.uid))
+                && get(/databases/$(database)/documents/groups/$(gid)/events/$(eventId)/rsvps/$(request.auth.uid)).data.status == 'going'));
+          allow create: if isGroupMember(gid)
+            && detailId == 'details'
+            && existsAfter(/databases/$(database)/documents/groups/$(gid)/events/$(eventId))
+            && getAfter(/databases/$(database)/documents/groups/$(gid)/events/$(eventId)).data.hostId == request.auth.uid
+            && request.resource.data.keys().hasOnly(['address'])
+            && request.resource.data.address is string
+            && request.resource.data.address.size() <= 240;
+          allow update, delete: if false;
+        }
+
+        match /rsvps/{uid} {
+          allow read: if isGroupMember(gid);
+          allow create, update: if isOwner(uid)
+            && isGroupMember(gid)
+            && request.resource.data.keys().hasOnly(['userId', 'displayName', 'status', 'updatedAt'])
+            && request.resource.data.userId == uid
+            && authorNameMatches(uid, request.resource.data.displayName)
+            && request.resource.data.status in ['going', 'maybe', 'declined']
+            && request.resource.data.updatedAt == request.time;
+          allow delete: if isOwner(uid);
+        }
+      }
+    }
+
+    // Write-only for members; reviewing reports needs a trusted moderation tool (roadmap Phase 7).
+    match /reports/{reportId} {
+      allow read, update, delete: if false;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['reporterId', 'targetType', 'targetPath', 'reason', 'createdAt'])
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.targetType in ['thread', 'reply', 'group', 'event', 'member']
+        && request.resource.data.targetPath is string
+        && request.resource.data.targetPath.size() <= 200
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() >= 1
+        && request.resource.data.reason.size() <= 500
+        && request.resource.data.createdAt == request.time;
+    }
+
+    // Private block list. Blocked members are hidden client-side in the forum and Discover.
+    match /blocks/{uid}/items/{targetId} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && targetId != uid
+        && request.resource.data.keys().hasOnly(['targetId', 'createdAt'])
+        && request.resource.data.targetId == targetId
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if isOwner(uid);
     }
   }
 }

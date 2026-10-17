@@ -2,7 +2,7 @@
 
 ## Connecting entertainment creatives
 
-The Scene is an early-stage web app for adults in the entertainment industry. Its current implemented scope is account registration/sign-in, a first-party profile onboarding/view/edit flow, and a protected dashboard. It is not yet a discovery, dating/matching, or messaging product: those screens/services are absent, and profiles are private to their owners in the checked-in Firestore rules.
+The Scene is an early-stage web app for adults in the entertainment industry. Its current implemented scope is account registration/sign-in, a first-party profile onboarding/view/edit flow, opt-in member discovery with filters, and a protected dashboard. It is not yet a dating/matching or messaging product: those screens/services are absent.
 
 ## Current capabilities and limitations
 
@@ -15,8 +15,11 @@ The Scene is an early-stage web app for adults in the entertainment industry. It
 - Profile URL input is normalized to HTTP(S); unsafe protocols are rejected. Profile saves validate ownership and bounded field lengths.
 - Firestore is the primary profile store when configured. Firestore errors are shown instead of being presented as successful LocalStorage saves. LocalStorage is only a compatibility fallback when Firebase is not configured.
 - Profile photos and cover photos have no upload UI. Cloud Storage rules currently deny all access; enabling uploads requires owner approval, Storage/billing setup, validation, and tested upload/removal behavior.
-- Profiles are readable only by their owner under the checked-in rules. This intentionally prevents discovery until a separate public-profile/privacy model exists.
-- Likes, matches, conversations, messages, notifications, subscriptions, reports, and blocks are not implemented; their Firestore rules deny client access.
+- Private profiles (`profiles/{uid}`) are readable only by their owner. Members who opt in (a "Let other members find me in Discover" checkbox on the profile form) also get a `publicProfiles/{uid}` copy limited to nickname, category, roles, bio, city/state, and connection preferences. Rules require it to mirror the private profile, and any signed-in member can read it only while `discoverable` is true. Per-field sharing: the owner picks which of bio, city, looking-for, and portfolio/social links are shared (`shared` list on the public doc); unshared fields are written blank and the rules enforce this. Email and gender never leave the private profile. Profiles saved before discovery stay hidden until the owner re-saves and opts in.
+- Discover (`/discover`) is the post-login landing screen: opted-in members appear as swipeable cards (drag, ♥/✕ buttons, or ←/→ keys) with a bottom bar for Discover, Community, My profile, and Log out. “View profile” on a card opens a detail page (`/members/:id`) with the member's shared fields, Like/Pass, Report, and Block. Likes/passes are saved privately in `swipes/{uid}/items/{targetId}` (owner-only) and swiped members are not shown again; mutual matching is not implemented. Collapsible category, role, state, and looking-for filters, paged 12 at a time, with loading/empty/error/retry states. Blocked members are excluded client-side (blocks are private; enforcement is soft until a trusted backend exists). Relevance ranking is not implemented. Discover queries order by document ID and need no composite index; the looking-for filter and self-exclusion run in the client.
+- Community (`/forum`, `/forum/threads/:id`, `/groups/:id`): open Q&A threads with replies, groups (anyone can join/leave; the owner cannot leave), group-only posts, and group events (music video, film shoot, etc.) with going/maybe/can't-go RSVPs. An event's exact address is in a separate `private/details` doc readable only by the host and members who RSVP “going”. Author names are verified against the author's profile by the rules. Members can report threads, replies, groups, events, and members (`reports`, write-only) and block members (`blocks/{uid}/items`). Reports have no review tool yet: that needs the trusted admin/moderation backend (roadmap Phase 7). No edit, image upload, pagination beyond 25 threads/50 groups, or notifications yet.
+- Mobile layout: the app is responsive and checked for no horizontal overflow on pages at 360×780 (Galaxy S25), 393×852 (iPhone 16), 402×874 (iPhone 17), 412×923 (Pixel 10), 440×956 (iPhone 17 Pro Max), and a 320×640 stress size. It uses `100dvh`, safe-area insets (`viewport-fit=cover`), 16px inputs (no iOS zoom), and 44px touch targets. These are emulated viewports, not real-device tests.
+- Matches, conversations, messages, notifications, and subscriptions are not implemented; their Firestore rules deny client access.
 - Firebase Cloud Functions is the selected candidate for trusted-backend evaluation, but no Functions code or deployment is configured.
 - No account deletion, terms/privacy/community-guideline/support pages, moderation workflow, or production deployment is implemented.
 - Capacitor is deferred.
@@ -113,7 +116,7 @@ The non-forced `npm audit fix` updated semver-compatible dependencies, including
 - Firestore rules deny client access to future interaction/safety collections until trusted authorization and matching UI exist.
 - Storage rules deny all reads/writes until a reviewed upload flow and explicit owner setup are complete.
 - Profile completion is determined from the authenticated owner's Firestore profile document when Firebase is configured. UI route guards supplement backend rules; they are not security enforcement.
-- `firestore.indexes.json` is empty because the app currently issues no discovery/search queries requiring composite indexes.
+- `firestore.indexes.json` defines one composite index (`threads`: `groupId` + `createdAt` desc) for forum and group post lists. Deploy it with the rules; it takes a few minutes to build.
 
 ## Production change and rollback policy
 

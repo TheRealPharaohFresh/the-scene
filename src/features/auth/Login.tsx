@@ -28,7 +28,7 @@ export default function Login() {
     try {
       setSubmitting(true);
       const user = await loginUser({ email, password });
-      const destination = user.profileComplete ? "/dashboard" : "/create-profile";
+      const destination = user.profileComplete ? "/discover" : "/create-profile";
       navigate(destination, { replace: true });
     } catch (error) {
       setError(error instanceof Error ? error.message : "Login failed.");
@@ -64,7 +64,7 @@ export default function Login() {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

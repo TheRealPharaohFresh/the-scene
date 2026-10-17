@@ -2,11 +2,13 @@ import { entertainmentRoles, type EntertainmentCategory } from "../data/entertai
 import type {
   GenderOption,
   LookingForOption,
+  ShareableField,
   SocialMediaLinks,
   UserProfile,
 } from "../types/profile";
 import { normalizeProfileUrl, validateUserProfile } from "../features/auth/validation";
 import { initFirebase } from "./firebaseClient";
+import { buildPublicProfile } from "./publicProfiles";
 
 const PROFILE_STORAGE_PREFIX = "the-scene-profile-";
 const genders: readonly GenderOption[] = ["Male", "Female", "Non-binary", "Prefer not to say"];
@@ -80,7 +82,7 @@ function normalizeOptionalUrl(value: string | undefined) {
   return value?.trim() ? normalizeProfileUrl(value) : "";
 }
 
-async function saveProfileToFirestore(userId: string, profile: UserProfile) {
+async function saveProfileToFirestore(userId: string, profile: UserProfile, discoverable: boolean, shared?: readonly ShareableField[]) {
   const client = await initFirebase();
   if (!client) throw new Error("Firebase not configured");
   if (client.auth.currentUser?.uid !== userId) {
@@ -88,9 +90,15 @@ async function saveProfileToFirestore(userId: string, profile: UserProfile) {
   }
 
   const { firestore } = client;
-  const { doc, setDoc } = await import("firebase/firestore");
-  const ref = doc(firestore, "profiles", userId);
-  await setDoc(ref, profile);
+  const { doc, serverTimestamp, writeBatch } = await import("firebase/firestore");
+  // Written together so the public copy can never exist without, or drift from, the private profile.
+  const batch = writeBatch(firestore);
+  batch.set(doc(firestore, "profiles", userId), profile);
+  batch.set(doc(firestore, "publicProfiles", userId), {
+    ...buildPublicProfile(profile, userId, discoverable, shared),
+    updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
 }
 
 async function fetchProfileFromFirestore(userId: string) {
@@ -108,7 +116,7 @@ async function fetchProfileFromFirestore(userId: string) {
   return normalizeStoredProfile(snap.data(), userId);
 }
 
-export async function saveUserProfile(userId: string, profile: UserProfile) {
+export async function saveUserProfile(userId: string, profile: UserProfile, options: { discoverable?: boolean; shared?: readonly ShareableField[] } = {}) {
   if (!userId) throw new Error("User ID is required to save a profile.");
 
   const { nickname, ...profileFields } = profile;
@@ -137,7 +145,7 @@ export async function saveUserProfile(userId: string, profile: UserProfile) {
 
   const client = await initFirebase();
   if (client) {
-    await saveProfileToFirestore(userId, normalizedProfile);
+    await saveProfileToFirestore(userId, normalizedProfile, options.discoverable ?? false, options.shared);
     return;
   }
 

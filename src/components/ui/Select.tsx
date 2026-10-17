@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 
 const selectStyle: CSSProperties = {
   width: "100%",
+  boxSizing: "border-box",
   padding: "14px 16px",
   borderRadius: 16,
   border: "1px solid rgba(245,244,242,0.18)",

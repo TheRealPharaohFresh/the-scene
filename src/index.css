@@ -64,6 +64,32 @@
 
 body {
   margin: 0;
+  background: #050408;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+select,
+input,
+textarea {
+  touch-action: manipulation;
+}
+
+/* Keep controls at 16px+ so iOS Safari does not zoom the page on focus. */
+input,
+select,
+textarea {
+  font-size: max(16px, 1em);
+}
+
+/* Comfortable thumb targets on touch screens. */
+@media (pointer: coarse) {
+  button,
+  select,
+  [role="button"] {
+    min-height: 44px;
+  }
 }
 
 h1,

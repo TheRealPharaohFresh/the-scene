@@ -20,7 +20,7 @@ export default function Dashboard() {
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         background: "linear-gradient(135deg, #050408 0%, #7727E9 45%, #F7326D 100%)",
         display: "flex",
         alignItems: "center",
@@ -77,8 +77,23 @@ export default function Dashboard() {
           >
             Edit your profile
           </button>
+          <button
+            type="button"
+            onClick={() => navigate("/discover")}
+            style={{
+              borderRadius: 999,
+              border: "1px solid rgba(245,244,242,0.2)",
+              padding: "14px 18px",
+              background: "transparent",
+              color: "#F5F4F2",
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            Discover creatives
+          </button>
           <p style={{ margin: 0, opacity: 0.8 }}>
-            Discovery is not available yet. Profiles are currently private to their owners.
+            Members who choose to be visible appear in Discover. Matching and messaging are not available yet.
           </p>
           <LogoutButton onClick={handleLogout} />
           {logoutError ? <p role="alert">{logoutError}</p> : null}

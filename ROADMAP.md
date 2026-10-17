@@ -38,6 +38,7 @@ The Scene helps adults in entertainment discover collaborators, build profession
 | Likes, passes, mutual matches | Blocked | No service exists. Firebase Cloud Functions 2nd-gen callable functions are the recommended evaluation target for authenticated commands; no Functions backend is configured or deployed. |
 | Blocking/reporting/moderation | Blocked | No UI or service exists; collection rules deny client access. A trusted moderation, escalation, and retention design is required before discovery or messaging. |
 | Messaging/notifications | Blocked | Screens are empty. No trusted match validation, conversation schema, unread/notification backend, or rules tests exist. |
+| Founding 2,000 membership cap and review queue | Planned (Phase 7A) | Specified only; nothing implemented. Needs the trusted-backend/billing decision, admin authorization, and answers to the open policy questions before work starts. |
 | Premium subscriptions | Blocked | Product scope, pricing, provider, trusted entitlement backend, credentials, and billing approval are unresolved. |
 | Portfolio/networking | Partial | Profile fields and safe HTTP(S)-normalized external links are implemented; featured work, collaboration requests, and networking flows are not. |
 | Legal/support documents and account lifecycle | Blocked | Terms, privacy/safety content, support routing, account deletion, retention, and incident handling need owner/legal decisions and trusted cleanup logic. |
@@ -77,7 +78,7 @@ The Scene helps adults in entertainment discover collaborators, build profession
 - [x] Deny all Storage access until setup and upload safety are owner-approved.
 - [x] Add an empty Firestore indexes manifest; no application query currently requires a composite index.
 - [x] Validate the checked-in Firestore and Storage rules with Firebase Emulator Suite tests.
-- [ ] Design separate public/private profile data and explicit discoverability/privacy preferences.
+- [x] Design separate public/private profile data and explicit discoverability/privacy preferences (`publicProfiles` with an owner opt-in `discoverable` flag; covered by rules tests). Remaining: per-field visibility controls.
 - [ ] Define schema evolution, production indexes, rate limits, moderation access, retention, and cross-collection account deletion.
 - [ ] Do not deploy rules or alter production Firebase configuration without explicit approval.
 
@@ -93,9 +94,9 @@ The Scene helps adults in entertainment discover collaborators, build profession
 
 ## Phase 4 — Creative discovery and search
 
-- [ ] Create a dedicated public profile projection that excludes email, auth metadata, precise location, private settings, and moderation fields.
-- [ ] Add discovery eligibility, discoverability controls, self/block exclusions, category/role/region/intent filters, and privacy tests.
-- [ ] Use deterministic ordering, bounded query pages, deduplication, and retry/empty/error states.
+- [x] Create a dedicated public profile projection that excludes email, auth metadata, precise location, private settings, and moderation fields.
+- [ ] Add discovery eligibility, discoverability controls, self/block exclusions, category/role/region/intent filters, and privacy tests. Done: opt-in control, self exclusion, category/role/state/intent filters, rules tests. Also done: swipe-card landing screen, private like/pass records, per-field sharing, member detail pages, client-side block exclusion. Remaining: trusted block enforcement and browser UI tests.
+- [x] Use deterministic ordering, bounded query pages, deduplication, and retry/empty/error states.
 - [ ] Add profile detail navigation without exposing private profile documents.
 - [ ] Generate/document required Firestore indexes only for implemented queries.
 - **Gate:** Do not expose discovery until the public/private schema, rules, and block exclusions pass emulator tests.
@@ -122,7 +123,13 @@ The Scene helps adults in entertainment discover collaborators, build profession
 - [ ] Define unmatched/deleted/blocked account and abuse handling.
 - [ ] Test authorization, persistence, block enforcement, pagination, and notification behavior.
 
+## Mobile responsiveness (done, emulated)
+
+All screens were checked for horizontal overflow at 360×780, 393×852, 402×874, 412×923, 440×956 and 320×640 (current Android/iPhone sizes plus a small stress size). Uses `100dvh`, safe-area insets, 16px inputs and 44px touch targets. Still open: real-device testing (iOS Safari, Android Chrome) and landscape/tablet review.
+
 ## Phase 7 — Safety, trust, and moderation
+
+> Status note: a first community forum (threads, groups, events with RSVP-gated addresses) shipped with write-only `reports` and private `blocks`. Still required: an admin review/moderation tool with trusted authorization, report triage and retention, rate limiting/abuse controls, and legal/safety content for in-person meetups.
 
 - [ ] Implement categorized report submission with optional details, confirmation, and restricted access.
 - [ ] Implement block/unblock and enforce it in discovery and messaging at the backend.
@@ -131,6 +138,109 @@ The Scene helps adults in entertainment discover collaborators, build profession
 - [ ] Define abuse/rate limiting, report escalation, retention, deleted-account behavior, and incident response.
 - [ ] Test that report content is private and blocking has immediate server-enforced effects.
 - **Gate:** No public launch before blocking/reporting/moderation and reviewed safety/legal content are ready.
+
+### Phase 7A — Founding 2,000 Membership Capacity and Registration Review Queue
+
+**Status: planned, not implemented.** Nothing below exists in the app, rules, or backend. This section is planning only; no cap, queue, status field, rule change, migration, or deployment is made by it.
+
+**Where it fits.** It needs a trusted backend (the Phase 5 Cloud Functions decision) and trusted admin authorization (Phase 7), and it controls who may use Phase 4 discovery and Phase 5/6 features. Implement it **before public launch and before opening registration beyond a closed test group**, and after the trusted-backend, billing, and admin-authorization decisions. It should not start until the Phase 1 browser/offline checks are done.
+
+**Depends on (existing work):**
+- Registration, `users/{uid}` self-attestation document, and the auth-state listener (`src/features/auth/authService.ts`).
+- Profile completion (`profiles/{uid}`, `markProfileComplete`, `hasCompletedProfile`) and `ProtectedRoute` / `HomeRedirect` routing.
+- Discovery eligibility (`publicProfiles/{uid}` and its `discoverable` flag, Phase 4). Pending and rejected applicants must never be readable there.
+- Phase 5 trusted-backend decision (callable Functions, App Check, billing approval) and Phase 7 trusted admin authorization (custom claims set server-side; never a client-set admin flag).
+
+**A. Capacity and membership definition**
+- [ ] Initial capacity is 2,000 **approved** members who completed registration and the required profile. Registration attempts, or accounts that authenticated but have no completed profile, do not count.
+- [ ] Define the single point at which membership is confirmed (proposed: the trusted backend marks the application `approved` after profile completion and consumes one place) and use it identically in registration, profile creation, and approval.
+- [ ] Capacity is stored server-side, defaults to 2,000, and is changeable only by authorized administrators. No public or user-writable setting.
+
+**B. After capacity is reached**
+- [ ] Applicants can still register and submit the profile (existing auth and validation apply) but do not become approved.
+- [ ] Completed applications go to a persistent review queue with `pending_review` status.
+- [ ] Show the confirmation copy below, stating that capacity is reached, the application will be reviewed, and acceptance is not guaranteed.
+- [ ] Keep submitted data so applicants do not re-enter it.
+- [ ] Pending/rejected applicants are excluded from discovery, search, matching, and messaging by **Firestore rules and backend checks**, not only by hidden UI.
+
+**C. Default applicant copy** (store centrally, e.g. one config module or document, so it can change without touching the registration flow):
+
+> **Welcome to The Scene — Your Application Is Under Review**
+>
+> Thank you for your interest in joining The Scene, a community built to connect entertainment industry creatives, foster collaboration, and create meaningful connections.
+>
+> We've reached our initial membership capacity of 2,000 approved members. You can still submit your profile for consideration.
+>
+> Our team will review your application to determine whether your background, interests, and goals align with The Scene community. If your application is approved, you'll receive an update with instructions on how to access your membership.
+>
+> Submission does not guarantee acceptance. We appreciate your interest and thank you for your patience while we review applications.
+>
+> The Scene Team
+>
+> Your people. Your vision. Your scene.
+
+**D. Statuses** — one validated status field on the existing account/profile model (extend `users/{uid}`; do not add a parallel lifecycle):
+
+| Status | Meaning | Allowed |
+| --- | --- | --- |
+| `profile_incomplete` | Authenticated, profile not finished | Complete or edit own profile only |
+| `pending_review` | Complete; awaiting a decision (capacity full) | See own status page, edit own application |
+| `approved` | Counts toward capacity | Full member features, subject to other rules |
+| `rejected` | Reviewed and declined | See own status page only; no member access |
+
+- [ ] Permitted transitions: `profile_incomplete` → `pending_review` or `approved` (by trusted backend only); `pending_review` → `approved` or `rejected` (admin only); `rejected` → `approved` only by a later authorized decision. Clients can never set status.
+- [ ] Applicants see respectful status messaging; internal moderation notes are never exposed to them.
+
+**E. Admin review queue**
+- [ ] Secure admin-only interface to view pending applications, inspect the profile information needed, approve or reject, and see capacity and pending counts.
+- [ ] Record the decision, timestamp, and reviewing admin for each decision.
+- [ ] Notify applicants when status changes. In-app status only until an email/push provider is chosen and configured; do not promise email, SMS, or push.
+- [ ] Admin controls and routes must not be visible or callable by ordinary members.
+
+**F. Capacity enforcement and concurrency**
+- [ ] Enforce the cap in the trusted backend with a Firestore transaction on a single authoritative counter (or equivalent reservation), never from React state, local storage, or a client counter.
+- [ ] Simultaneous registrations must never approve more than the configured capacity.
+- [ ] Define how a place is counted, reserved or consumed on approval, and how abandoned or failed profile creation is released. Counting happens at confirmed approval, not at sign-up.
+- [ ] Decide idempotency and retry behavior so a repeated request cannot consume two places.
+
+**G. Data model and rules (to be designed after re-inspecting the repo at implementation time)**
+- [ ] Minimum additions: authoritative capacity/count document, application status and timestamps on `users/{uid}`/`profiles/{uid}`, admin decision records, and applicant status notifications.
+- [ ] Firestore rules: clients cannot write status, capacity, or decision fields; only the owner can read their own status; admins via server-set claims only. No secrets or privileged credentials in the frontend.
+- [ ] Existing profile write rules and the discovery projection must be updated so non-approved members cannot become discoverable.
+
+**H. App integration**
+- [ ] Route guards and `HomeRedirect` send `pending_review` and `rejected` users to an application-status page, not the member dashboard; approved first-login and returning users keep today's flow.
+- [ ] Profile creation (`CreateProfile`), auth-state listener, and dashboard read status from the same source.
+
+**Open policy decisions (settle before the dependent behavior is built):**
+1. Is the 2,000 cap permanently fixed, or can an administrator expand it?
+2. Does an approved member who deletes their account or leaves free a place?
+3. Can a rejected applicant appeal or reapply?
+4. Are applications reviewed strictly in submission order, or can admins prioritize?
+5. How long are pending and rejected applications retained?
+6. What happens if someone registers while a place is available but never completes the profile?
+7. What happens if an approved member's profile later becomes incomplete?
+8. What privacy and retention requirements apply to submitted application data?
+
+**Implementation order:**
+1. Confirm current registration, profile-completion, auth, and route-guard behavior (finish Phase 1 browser checks).
+2. Define lifecycle and capacity-counting rules (answer the open questions).
+3. Design the data model and trusted enforcement mechanism (needs Phase 5 backend/billing decision).
+4. Implement concurrency-safe capacity enforcement.
+5. Integrate the queue with registration and profile creation.
+6. Add pending, approved, and rejected experiences.
+7. Build secure admin review tools.
+8. Add in-app applicant status notifications.
+9. Test concurrency, security, privacy, and every lifecycle transition against emulators.
+10. Update documentation and prepare for release.
+
+**Acceptance criteria:**
+- Exactly the configured capacity of members can be approved even under simultaneous requests (emulator concurrency test).
+- A non-admin, pending, or rejected user cannot read or write status, capacity, other applicants, or discovery data (rules tests).
+- Approved members' existing sign-in, profile, and discovery flows are unchanged.
+- Pending and rejected users land on the status page after login.
+- Every decision records reviewer and timestamp, and status transitions outside the table above are rejected.
+- **Gate:** do not enable the cap or queue, change production rules, or deploy backend code without explicit owner approval.
 
 ## Phase 8 — Premium subscriptions
 
@@ -166,6 +276,7 @@ The Scene helps adults in entertainment discover collaborators, build profession
 - [ ] Owner: approve Storage/billing setup only if uploads are in launch scope.
 - [ ] Owner/legal: review age assurance, privacy/terms/safety documents, support, data retention, and account deletion.
 - [ ] Pass auth/profile journeys and rules tests; finish blocking/reporting before public release.
+- [ ] Decide whether the Founding 2,000 cap and review queue (Phase 7A) must be in place before public registration opens; if so, it is a release blocker.
 - [ ] Confirm no known critical/high security issues, billing readiness, rollback owner, and deployment approval.
 - **Gate:** No deploy, migration, production Firebase change, or release without explicit owner approval.
 
@@ -180,4 +291,5 @@ The Scene helps adults in entertainment discover collaborators, build profession
 
 1. Engineering: add browser UI coverage for onboarding and profile edit, complete reset-link testing, and exercise invalid-credential/offline/network failure states against emulators.
 2. Owner/legal: confirm the 18+ assurance approach and approve safety, privacy, support, retention, and deletion requirements; until then, self-attestation is not launch approval.
-3. Engineering/owner: design the public/private profile model and authenticated callable contracts before starting discovery, matching, blocking, or messaging. Decide App Check, abuse controls, region, billing, and deployment approval before any remote Functions setup.
+3. Owner: answer the eight open policy questions in Phase 7A (Founding 2,000 membership cap and review queue) so it can be scheduled.
+4. Engineering/owner: design the public/private profile model and authenticated callable contracts before starting discovery, matching, blocking, or messaging. Decide App Check, abuse controls, region, billing, and deployment approval before any remote Functions setup.

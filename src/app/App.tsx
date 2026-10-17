@@ -12,6 +12,11 @@ const Register = lazy(() => import("../features/auth/Register"));
 const CreateProfile = lazy(() => import("../features/auth/onboarding/CreateProfile"));
 const Dashboard = lazy(() => import("../features/auth/dashboard/Dashboard"));
 const Profile = lazy(() => import("../features/auth/profile/Profile"));
+const MemberProfile = lazy(() => import("../features/auth/discovery/MemberProfile"));
+const Forum = lazy(() => import("../features/community/Forum"));
+const ThreadPage = lazy(() => import("../features/community/ThreadPage"));
+const GroupPage = lazy(() => import("../features/community/GroupPage"));
+const Discover = lazy(() => import("../features/auth/discovery/Discover"));
 
 function HomeRedirect() {
   const [authReady, setAuthReady] = useState(false);
@@ -70,7 +75,7 @@ function HomeRedirect() {
     return <Navigate to="/login" replace />;
   }
 
-  return <Navigate to={hasCompletedProfile(userId) ? "/dashboard" : "/create-profile"} replace />;
+  return <Navigate to={hasCompletedProfile(userId) ? "/discover" : "/create-profile"} replace />;
 }
 
 function App() {
@@ -122,6 +127,46 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/discover"
+              element={
+                <ProtectedRoute>
+                  <Discover />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/members/:memberId"
+              element={
+                <ProtectedRoute>
+                  <MemberProfile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/forum"
+              element={
+                <ProtectedRoute>
+                  <Forum />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/forum/threads/:threadId"
+              element={
+                <ProtectedRoute>
+                  <ThreadPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/groups/:groupId"
+              element={
+                <ProtectedRoute>
+                  <GroupPage />
                 </ProtectedRoute>
               }
             />
