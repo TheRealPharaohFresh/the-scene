@@ -3,7 +3,7 @@
 **Product:** The Scene — Connecting Entertainment Creatives
 **Platform:** React, TypeScript, Vite, React Router, Firebase Authentication, Cloud Firestore
 **Mobile:** Capacitor is deferred until the web product is stable and release-ready
-**Last audited:** 2026-10-16
+**Last audited:** 2026-10-17
 
 ## Product vision
 
@@ -24,24 +24,24 @@ The Scene helps adults in entertainment discover collaborators, build profession
 | Requirement | Status | Evidence and remaining proof |
 | --- | --- | --- |
 | Working-tree preservation | Verified complete | Initial audit found pre-existing edits in `src/features/auth/profile/Profile.tsx` and `src/features/auth/profile/ProfileCard.tsx`; both were retained. |
-| React/TypeScript production build | Verified complete | `npm run build` passes; route JavaScript chunks are below 500 kB. The logo PNG is about 1.0 MB. |
+| React/TypeScript production build | Verified complete | `npm run build` passes after the Firestore optional-field fix; route JavaScript chunks are below 500 kB. The logo PNG is about 1.0 MB. |
 | Repository lint | Verified complete | `npm run lint` passes after the current changes. |
 | Profile input validation unit tests | Verified complete | `npm test -- --reporter=verbose`: 11 URL/schema validation tests pass. |
 | Dependency vulnerability scan | Partial | A non-forced `npm audit fix` patched React Router to 7.18.4. Full audit reports 12 advisories (6 moderate, 6 high), including a test-only rules-unit-testing finding; production-only audit remains 11 (6 moderate, 5 high) through Firebase's nested `@grpc/grpc-js`/`undici`. `npm audit fix --force` proposes downgrading Firebase to 9.14.0 and was not run. |
-| Registration, login, auth restore, logout, password reset | Partial | Firebase SDK flows and error/loading handling exist; no Firebase emulator integration tests or live Firebase verification were run. |
+| Registration, login, auth restore, logout, password reset | Partial | Emulator tests pass for registration, attestation persistence, login/logout, auth restore, profile create/update/reload, and reset-email request. Browser journeys, offline/error paths, reset-link completion, and live Firebase remain unverified. |
 | 18+ eligibility | Partial | Registration requires a stored adult self-attestation. Owner selected to keep launch blocked until legal review; this is not independent age verification. |
-| Profile create/view/edit persistence | Partial | Owner-only Firestore/local compatibility paths and an edit route are implemented; emulator-backed and cross-device end-to-end tests remain absent. |
-| Firebase auth/profile error states | Partial | Profile status is checked against Firestore during login/auth restore; Firebase/network behavior has not been exercised against an emulator. |
-| Firestore and Storage privacy/validation rules | Partial | Owner-only profile and account rules, deny-by-default interaction rules, and deny-all Storage rules are in place. Emulator test cases are added, but have not run because Java and the Firebase CLI are unavailable. Nothing has been deployed. |
+| Profile create/view/edit persistence | Partial | Owner-only persistence and editing are implemented; emulator tests cover create/update/reload but not legacy schemas, browser UI, or cross-device production behavior. |
+| Firebase auth/profile error states | Partial | Auth/profile core emulator flows pass. Offline, invalid-credential, and network failure behavior still need coverage. |
+| Firestore and Storage privacy/validation rules | Partial | Seven Firestore/Storage rules tests pass locally, including owner privacy, schema validation, immutable ownership/creation, denied social writes, and deny-all uploads. Nothing has been deployed. |
 | Cloud Storage | Blocked | Upload UI is unavailable and repository rules deny all Storage access. Owner must approve billing/setup and a tested upload/removal flow before enabling it. |
 | Discovery/search | Missing | The screen/service is empty. Profiles are deliberately private, so public discovery cannot be implemented safely until a separate public-profile/privacy schema and tested query rules are approved. |
-| Likes, passes, mutual matches | Blocked | No service exists. Secure mutual matching needs trusted server logic or a formally tested authorization design. Firebase Cloud Functions was selected for evaluation, but no Functions backend is configured or deployed. |
+| Likes, passes, mutual matches | Blocked | No service exists. Firebase Cloud Functions 2nd-gen callable functions are the recommended evaluation target for authenticated commands; no Functions backend is configured or deployed. |
 | Blocking/reporting/moderation | Blocked | No UI or service exists; collection rules deny client access. A trusted moderation, escalation, and retention design is required before discovery or messaging. |
 | Messaging/notifications | Blocked | Screens are empty. No trusted match validation, conversation schema, unread/notification backend, or rules tests exist. |
 | Premium subscriptions | Blocked | Product scope, pricing, provider, trusted entitlement backend, credentials, and billing approval are unresolved. |
 | Portfolio/networking | Partial | Profile fields and safe HTTP(S)-normalized external links are implemented; featured work, collaboration requests, and networking flows are not. |
 | Legal/support documents and account lifecycle | Blocked | Terms, privacy/safety content, support routing, account deletion, retention, and incident handling need owner/legal decisions and trusted cleanup logic. |
-| Release readiness | Blocked | No emulator rules suite, moderation/messaging implementation, legal review, Firebase deployment verification, monitoring, or owner-approved launch configuration. |
+| Release readiness | Blocked | Browser UI/offline tests, account deletion, moderation/messaging implementation, legal review, Firebase deployment verification, monitoring, and owner-approved launch configuration remain outstanding. |
 | Capacitor | Deferred | Mobile expansion is intentionally out of scope until the web release gates pass. |
 
 ## Phase 0 — Repository audit and execution plan
@@ -62,9 +62,10 @@ The Scene helps adults in entertainment discover collaborators, build profession
 - [x] Require an explicit 18+ self-attestation at registration and persist it with server timestamps.
 - [x] Add profile schema/URL validation and server-side rule validation for owner writes.
 - [x] Add profile editing and loading/error/retry feedback.
-- [ ] Run emulator-backed registration, login, logout, auth restore, reset, onboarding, profile create/edit, offline, and unauthorized-access tests.
+- [x] Run emulator-backed registration, login, logout, auth restore, reset-email request, profile create/update/reload, and self-attestation persistence tests.
+- [ ] Test onboarding UI, reset-link completion, invalid credentials, offline/network failure, and browser unauthorized-access behavior.
 - [x] Add isolated Firestore/Storage rule-test cases using the `demo-the-scene` emulator project ID.
-- [ ] Run the rule tests after installing the Firebase CLI and a supported Java runtime; full Authentication-flow integration tests remain separate work.
+- [x] Run the Auth/profile and Firestore/Storage emulator suites using the isolated `demo-the-scene` project ID.
 - [ ] Verify the adult eligibility policy with the owner/legal reviewer; self-attestation is not age verification.
 - [ ] Implement a trusted account deletion and recovery flow.
 
@@ -75,8 +76,7 @@ The Scene helps adults in entertainment discover collaborators, build profession
 - [x] Deny client access to incomplete likes, matches, conversations, messages, notifications, subscriptions, reports, and blocks.
 - [x] Deny all Storage access until setup and upload safety are owner-approved.
 - [x] Add an empty Firestore indexes manifest; no application query currently requires a composite index.
-- [ ] Validate Firestore and Storage rules with Firebase Emulator Suite tests.
-- [ ] Complete the emulator test run; current environment lacks Java and the Firebase CLI.
+- [x] Validate the checked-in Firestore and Storage rules with Firebase Emulator Suite tests.
 - [ ] Design separate public/private profile data and explicit discoverability/privacy preferences.
 - [ ] Define schema evolution, production indexes, rate limits, moderation access, retention, and cross-collection account deletion.
 - [ ] Do not deploy rules or alter production Firebase configuration without explicit approval.
@@ -86,7 +86,7 @@ The Scene helps adults in entertainment discover collaborators, build profession
 - [x] Keep nickname, gender option, industry/category, category-specific roles, bio, an entered city/selected US state or territory, portfolio/social links, and connection preferences in the profile flow.
 - [x] Normalize external profile links to HTTP(S), reject other schemes, preserve the creation timestamp while editing, and validate field sizes.
 - [x] Implement owner profile editing and a saved-profile view.
-- [ ] Add emulator-backed legacy-schema, validation, update, and privacy tests.
+- [ ] Add emulator-backed legacy-schema migration tests; update, validation, and privacy coverage is present in the current emulator suites.
 - [ ] Enable optional image uploads only after owner approval and Storage setup/billing review.
 - [ ] Before enabling uploads, add MIME/content validation, file-size/path restrictions, progress/retry/removal UX, and tested Storage rules.
 - [ ] Keep only city/region the user elects to provide; do not collect or expose a precise home location.
@@ -102,10 +102,10 @@ The Scene helps adults in entertainment discover collaborators, build profession
 
 ## Phase 5 — Likes, matching, and interaction state
 
-- [x] Select Firebase Cloud Functions as the candidate trusted backend for evaluation; its Auth/Firestore integration and local emulator fit server-authorized interaction flows. This is not approval to deploy or incur cost.
+- [x] Evaluate Firebase Cloud Functions 2nd-gen callable functions as the candidate trusted backend: [callable requests carry Firebase Auth context](https://firebase.google.com/docs/functions/callable) and can integrate [App Check](https://firebase.google.com/docs/app-check/cloud-functions), and the local emulator supports pre-deployment testing. Admin SDK writes must enforce authorization in function code rather than relying on client Firestore rules. This is not approval to deploy or incur cost.
 - [ ] Persist like/pass state with idempotent actions, duplicate protection, and account/block checks.
 - [ ] Create matches only for mutual interest using trusted server logic or an emulator-tested authorization design.
-- [ ] Design callable/server handlers to require an authenticated caller, validate payload and eligibility, apply block checks, and perform interest/match changes transactionally; keep direct client writes denied.
+- [ ] Design callable handlers to require an authenticated caller, validate payload and eligibility, apply block checks, and perform interest/match changes transactionally; keep direct client writes denied and return only safe public data.
 - [ ] Decide App Check, rate limits/abuse controls, region, cost/billing, and owner approval before implementing or deploying Functions.
 - [ ] Prevent clients from forging matches or acting for other users.
 - [ ] Add match list/detail and new-match notification flows.
@@ -151,7 +151,7 @@ The Scene helps adults in entertainment discover collaborators, build profession
 
 - [x] Add focused profile validation unit tests and a repeatable Vitest command.
 - [x] Add route-level lazy loading and replace the global city dataset with a local state/territory list plus a city input.
-- [ ] Add integration/rules tests for critical auth/profile journeys using emulators.
+- [x] Add and pass emulator integration/rules tests for critical Auth/profile and Firestore/Storage authorization paths.
 - [ ] Review keyboard-only navigation, labels, focus visibility, mobile breakpoints, loading/empty/error states, and network retry UX.
 - [x] Confirm route splitting and city-dataset removal keep all generated JavaScript chunks below the build warning threshold.
 - [ ] Inspect browser console and failed network requests in a real/emulated browser flow.
@@ -178,6 +178,6 @@ The Scene helps adults in entertainment discover collaborators, build profession
 
 ## Immediate next steps
 
-1. Engineering: install a supported Java runtime and Firebase CLI, then run `npm run test:rules` against the isolated demo project; separately implement Auth/profile integration tests.
+1. Engineering: add browser UI coverage for onboarding and profile edit, complete reset-link testing, and exercise invalid-credential/offline/network failure states against emulators.
 2. Owner/legal: confirm the 18+ assurance approach and approve safety, privacy, support, retention, and deletion requirements; until then, self-attestation is not launch approval.
-3. Engineering/owner: evaluate Firebase Cloud Functions for trusted interaction flows and design the public/private profile model before starting discovery, matching, blocking, or messaging. Obtain billing/deployment approval before any remote Functions setup.
+3. Engineering/owner: design the public/private profile model and authenticated callable contracts before starting discovery, matching, blocking, or messaging. Decide App Check, abuse controls, region, billing, and deployment approval before any remote Functions setup.

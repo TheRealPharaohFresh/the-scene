@@ -6,8 +6,8 @@ The Scene is an early-stage web app for adults in the entertainment industry. It
 
 ## Current capabilities and limitations
 
-- **Implemented foundation:** core email/password auth flows, profile onboarding/view/edit, owner-only profile persistence/rules, and input validation. **Locally verified:** production build, lint, and 11 focused unit tests; backend behavior still needs emulator tests.
-- **Not done:** Firebase emulator/rules tests (test cases are added but not yet run), end-to-end Auth tests, public discovery, likes/matching, blocking/reporting/moderation, messaging/notifications, account deletion, legal/support content, and production deployment. See [`ROADMAP.md`](./ROADMAP.md) for the phase-by-phase checklist and launch gates.
+- **Implemented foundation:** core email/password auth flows, profile onboarding/view/edit, owner-only profile persistence/rules, and input validation. **Locally verified:** production build, lint, 11 focused unit tests, Auth/profile emulator flows, and Firestore/Storage rule tests.
+- **Not done:** browser UI end-to-end tests, offline/error-path verification, public discovery, likes/matching, blocking/reporting/moderation, messaging/notifications, account deletion, legal/support content, and production deployment. See [`ROADMAP.md`](./ROADMAP.md) for the phase-by-phase checklist and launch gates.
 - Firebase email/password registration and login.
 - Registration requires a self-attestation that the user is at least 18. This is **not** identity or age verification; launch remains blocked pending owner/legal approval.
 - Firebase auth-state restore, profile-completion lookup, sign-out, and Firebase password-reset email flow.
@@ -29,7 +29,7 @@ See [`ROADMAP.md`](./ROADMAP.md) for the audited status matrix, phase gates, exa
 - Firebase Authentication and Cloud Firestore
 - Firebase Cloud Storage is not enabled by app rules or the profile UI
 - The profile form uses a small local US state/territory list and a free-text city field to avoid bundling a global city database.
-- Vitest covers focused profile input validation. Firestore/Storage rules test cases have been added but could not be run without Java and the Firebase CLI; end-to-end Authentication tests remain outstanding.
+- Vitest covers focused profile input validation plus emulator integration tests for Auth/profile workflows and Firestore/Storage rules. UI browser journeys, offline behavior, and live Firebase have not been tested.
 
 ## Local setup
 
@@ -85,7 +85,8 @@ npm run dev
 npm run test:rules
 ```
 
-The rules test suite uses Auth-mocked identities and checks owner-only profile access, profile validation, account self-attestation, denied interaction writes, and denied Storage uploads. It does not replace end-to-end tests of the real Authentication flow. These emulator tests have been added but are not yet verified on this machine because a Java runtime and Firebase CLI are unavailable.
+The rules test suite uses Auth-mocked identities and checks owner-only profile access, profile validation, account self-attestation, denied interaction writes, and denied Storage uploads. The Auth/profile suite exercises registration, attestation persistence, profile create/update/reload, sign-in/out, auth-state restore, and reset-email requests. Both suites have passed against local emulators; they do not replace browser UI journeys or live Firebase verification.
+Run the suites one at a time because they share emulator ports.
 
 ## Commands
 
@@ -95,10 +96,11 @@ npm run build     # Type-check and create a production bundle
 npm run lint      # Run ESLint
 npm test          # Run focused Vitest unit tests
 npm run test:rules # Run Firestore/Storage rules tests in local emulators
+npm run test:auth  # Run Auth/profile integration tests in local emulators
 npm run preview   # Preview the production bundle locally
 ```
 
-The current 11 profile-validation unit tests cover URL scheme handling, profile ownership, category-role and state-code validation, duplicate selections, bio length, and disabled inline-photo uploads. They do not replace Firebase auth, Firestore persistence, rules, browser, or end-to-end tests.
+The current tests include 11 profile-validation unit tests, 7 Firestore/Storage rules tests, and 2 Auth/profile emulator integration tests. They do not replace browser UI journeys, offline/error-path testing, or production Firebase verification.
 
 ## Dependency audit
 

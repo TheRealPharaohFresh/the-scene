@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run src",
     "test:rules": "firebase emulators:exec --only firestore,storage --project demo-the-scene \"vitest run tests/security.rules.test.ts\"",
+    "test:auth": "firebase emulators:exec --only auth,firestore --project demo-the-scene \"vitest run tests/auth-profile.integration.test.ts\"",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.7.0",
+    "jsdom": "^30.1.3",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.62.0",
     "vite": "^8.1.1",

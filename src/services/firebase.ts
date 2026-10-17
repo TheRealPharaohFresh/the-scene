@@ -111,11 +111,12 @@ async function fetchProfileFromFirestore(userId: string) {
 export async function saveUserProfile(userId: string, profile: UserProfile) {
   if (!userId) throw new Error("User ID is required to save a profile.");
 
+  const { nickname, ...profileFields } = profile;
   const normalizedProfile: UserProfile = {
-    ...profile,
+    ...profileFields,
     userId,
     displayName: profile.displayName?.trim() || profile.nickname?.trim() || "",
-    nickname: profile.nickname?.trim() || undefined,
+    ...(nickname?.trim() ? { nickname: nickname.trim() } : {}),
     bio: profile.bio.trim(),
     stateCode: profile.stateCode?.trim().toUpperCase() ?? "",
     city: profile.city?.trim() ?? "",
