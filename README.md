@@ -7,9 +7,9 @@ The Scene is an early-stage web app for adults in the entertainment industry. It
 ## Current capabilities and limitations
 
 - **Implemented foundation:** core email/password auth flows, profile onboarding/view/edit, owner-only profile persistence/rules, and input validation. **Locally verified:** production build, lint, and 11 focused unit tests; backend behavior still needs emulator tests.
-- **Not done:** Firebase emulator/rules integration tests, public discovery, likes/matching, blocking/reporting/moderation, messaging/notifications, account deletion, legal/support content, and production deployment. See [`ROADMAP.md`](./ROADMAP.md) for the phase-by-phase checklist and launch gates.
+- **Not done:** Firebase emulator/rules tests (test cases are added but not yet run), end-to-end Auth tests, public discovery, likes/matching, blocking/reporting/moderation, messaging/notifications, account deletion, legal/support content, and production deployment. See [`ROADMAP.md`](./ROADMAP.md) for the phase-by-phase checklist and launch gates.
 - Firebase email/password registration and login.
-- Registration requires a self-attestation that the user is at least 18. This is **not** identity or age verification and needs owner/legal review before launch.
+- Registration requires a self-attestation that the user is at least 18. This is **not** identity or age verification; launch remains blocked pending owner/legal approval.
 - Firebase auth-state restore, profile-completion lookup, sign-out, and Firebase password-reset email flow.
 - Profile create, view, and edit for nickname, gender option, entertainment category/roles, bio, optional entered city/selected US state or territory, portfolio/social URLs, and connection preferences.
 - Profile URL input is normalized to HTTP(S); unsafe protocols are rejected. Profile saves validate ownership and bounded field lengths.
@@ -17,6 +17,7 @@ The Scene is an early-stage web app for adults in the entertainment industry. It
 - Profile photos and cover photos have no upload UI. Cloud Storage rules currently deny all access; enabling uploads requires owner approval, Storage/billing setup, validation, and tested upload/removal behavior.
 - Profiles are readable only by their owner under the checked-in rules. This intentionally prevents discovery until a separate public-profile/privacy model exists.
 - Likes, matches, conversations, messages, notifications, subscriptions, reports, and blocks are not implemented; their Firestore rules deny client access.
+- Firebase Cloud Functions is the selected candidate for trusted-backend evaluation, but no Functions code or deployment is configured.
 - No account deletion, terms/privacy/community-guideline/support pages, moderation workflow, or production deployment is implemented.
 - Capacitor is deferred.
 
@@ -28,7 +29,7 @@ See [`ROADMAP.md`](./ROADMAP.md) for the audited status matrix, phase gates, exa
 - Firebase Authentication and Cloud Firestore
 - Firebase Cloud Storage is not enabled by app rules or the profile UI
 - The profile form uses a small local US state/territory list and a free-text city field to avoid bundling a global city database.
-- Vitest covers focused profile input validation; Firebase emulator integration/rules tests are not yet present
+- Vitest covers focused profile input validation. Firestore/Storage rules test cases have been added but could not be run without Java and the Firebase CLI; end-to-end Authentication tests remain outstanding.
 
 ## Local setup
 
@@ -53,9 +54,9 @@ The Firebase owner must enable Email/Password Authentication and create the Fire
 
 ## Emulator workflow
 
-The app can connect Auth and Firestore to local emulators when `VITE_USE_FIREBASE_EMULATORS=true`. Storage is not connected. Install/use the Firebase CLI separately; it is not a project dependency.
+The app can connect Auth and Firestore to local emulators when `VITE_USE_FIREBASE_EMULATORS=true`. The app does not connect to Storage; the Storage emulator is started only by the security-rules test command. Install/use the Firebase CLI separately; it is not a project dependency.
 
-For local emulator use, set dummy client values in the ignored `.env` (never real production configuration), for example:
+For local emulator use, install the Firebase CLI and a Java runtime required by the emulators. Set dummy client values in the ignored `.env` (never real production configuration), for example:
 
 ```dotenv
 VITE_FIREBASE_API_KEY=demo-api-key
@@ -65,6 +66,12 @@ VITE_FIREBASE_APP_ID=demo-app-id
 VITE_USE_FIREBASE_EMULATORS=true
 ```
 
+Install the Firebase CLI separately from the app dependencies:
+
+```bash
+npm install --global firebase-tools
+```
+
 In separate terminals:
 
 ```bash
@@ -72,7 +79,13 @@ firebase emulators:start --only auth,firestore --project demo-the-scene
 npm run dev
 ```
 
-`firebase.json` configures Auth on port `9099` and Firestore on port `8080`, and points the emulator/CLI at `firestore.rules` and `firestore.indexes.json`. Do not run this workflow against a production project. The checked-in rules have **not** yet been validated with emulator tests.
+`firebase.json` configures Auth on port `9099`, Firestore on port `8080`, and Storage on port `9199`; it points the emulator/CLI at the checked-in rules and Firestore indexes. Rule tests use the isolated `demo-the-scene` project ID and never target a production project:
+
+```bash
+npm run test:rules
+```
+
+The rules test suite uses Auth-mocked identities and checks owner-only profile access, profile validation, account self-attestation, denied interaction writes, and denied Storage uploads. It does not replace end-to-end tests of the real Authentication flow. These emulator tests have been added but are not yet verified on this machine because a Java runtime and Firebase CLI are unavailable.
 
 ## Commands
 
@@ -81,6 +94,7 @@ npm run dev       # Start Vite development server
 npm run build     # Type-check and create a production bundle
 npm run lint      # Run ESLint
 npm test          # Run focused Vitest unit tests
+npm run test:rules # Run Firestore/Storage rules tests in local emulators
 npm run preview   # Preview the production bundle locally
 ```
 
@@ -88,7 +102,7 @@ The current 11 profile-validation unit tests cover URL scheme handling, profile 
 
 ## Dependency audit
 
-The non-forced `npm audit fix` updated semver-compatible dependencies, including React Router. The remaining audit currently reports 11 advisories (6 moderate, 5 high) through Firebase's nested `@grpc/grpc-js` and `undici` packages. npm's forced fix proposes downgrading Firebase to 9.14.0; that change was not applied. The exposure of those transitive packages in the browser runtime has not been assessed. Resolve and review the advisories before production launch; do not claim the dependency tree is vulnerability-free.
+The non-forced `npm audit fix` updated semver-compatible dependencies, including React Router. The current full dependency audit reports 12 advisories (6 moderate, 6 high); the production-only audit reports 11 (6 moderate, 5 high) through Firebase's nested `@grpc/grpc-js` and `undici` packages. The additional full-audit finding is associated with the rules-test dependency and Firebase SDK version. npm's forced fix proposes downgrading Firebase to 9.14.0; that change was not applied. The exposure of the production transitive packages in the browser runtime has not been assessed. Resolve and review the advisories before production launch; do not claim the dependency tree is vulnerability-free.
 
 ## Data and security model in this repository
 

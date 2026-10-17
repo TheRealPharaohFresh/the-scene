@@ -27,15 +27,15 @@ The Scene helps adults in entertainment discover collaborators, build profession
 | React/TypeScript production build | Verified complete | `npm run build` passes; route JavaScript chunks are below 500 kB. The logo PNG is about 1.0 MB. |
 | Repository lint | Verified complete | `npm run lint` passes after the current changes. |
 | Profile input validation unit tests | Verified complete | `npm test -- --reporter=verbose`: 11 URL/schema validation tests pass. |
-| Dependency vulnerability scan | Partial | A non-forced `npm audit fix` patched React Router to 7.18.4; `npm audit` still reports 11 advisories (6 moderate, 5 high) through Firebase's nested `@grpc/grpc-js`/`undici` dependencies. `npm audit fix --force` proposes downgrading Firebase to 9.14.0 and was not run. |
+| Dependency vulnerability scan | Partial | A non-forced `npm audit fix` patched React Router to 7.18.4. Full audit reports 12 advisories (6 moderate, 6 high), including a test-only rules-unit-testing finding; production-only audit remains 11 (6 moderate, 5 high) through Firebase's nested `@grpc/grpc-js`/`undici`. `npm audit fix --force` proposes downgrading Firebase to 9.14.0 and was not run. |
 | Registration, login, auth restore, logout, password reset | Partial | Firebase SDK flows and error/loading handling exist; no Firebase emulator integration tests or live Firebase verification were run. |
-| 18+ eligibility | Partial | Registration requires a stored adult self-attestation. This is not independent age verification and requires owner/legal review. |
+| 18+ eligibility | Partial | Registration requires a stored adult self-attestation. Owner selected to keep launch blocked until legal review; this is not independent age verification. |
 | Profile create/view/edit persistence | Partial | Owner-only Firestore/local compatibility paths and an edit route are implemented; emulator-backed and cross-device end-to-end tests remain absent. |
 | Firebase auth/profile error states | Partial | Profile status is checked against Firestore during login/auth restore; Firebase/network behavior has not been exercised against an emulator. |
-| Firestore privacy and validation rules | Partial | Rules now validate identity/profile schemas and keep profiles owner-readable. Rules have not been tested in an emulator or deployed. |
+| Firestore and Storage privacy/validation rules | Partial | Owner-only profile and account rules, deny-by-default interaction rules, and deny-all Storage rules are in place. Emulator test cases are added, but have not run because Java and the Firebase CLI are unavailable. Nothing has been deployed. |
 | Cloud Storage | Blocked | Upload UI is unavailable and repository rules deny all Storage access. Owner must approve billing/setup and a tested upload/removal flow before enabling it. |
 | Discovery/search | Missing | The screen/service is empty. Profiles are deliberately private, so public discovery cannot be implemented safely until a separate public-profile/privacy schema and tested query rules are approved. |
-| Likes, passes, mutual matches | Blocked | No service exists. Secure mutual matching needs trusted server logic or a formally tested authorization design; no Cloud Functions/backend is configured. |
+| Likes, passes, mutual matches | Blocked | No service exists. Secure mutual matching needs trusted server logic or a formally tested authorization design. Firebase Cloud Functions was selected for evaluation, but no Functions backend is configured or deployed. |
 | Blocking/reporting/moderation | Blocked | No UI or service exists; collection rules deny client access. A trusted moderation, escalation, and retention design is required before discovery or messaging. |
 | Messaging/notifications | Blocked | Screens are empty. No trusted match validation, conversation schema, unread/notification backend, or rules tests exist. |
 | Premium subscriptions | Blocked | Product scope, pricing, provider, trusted entitlement backend, credentials, and billing approval are unresolved. |
@@ -63,6 +63,8 @@ The Scene helps adults in entertainment discover collaborators, build profession
 - [x] Add profile schema/URL validation and server-side rule validation for owner writes.
 - [x] Add profile editing and loading/error/retry feedback.
 - [ ] Run emulator-backed registration, login, logout, auth restore, reset, onboarding, profile create/edit, offline, and unauthorized-access tests.
+- [x] Add isolated Firestore/Storage rule-test cases using the `demo-the-scene` emulator project ID.
+- [ ] Run the rule tests after installing the Firebase CLI and a supported Java runtime; full Authentication-flow integration tests remain separate work.
 - [ ] Verify the adult eligibility policy with the owner/legal reviewer; self-attestation is not age verification.
 - [ ] Implement a trusted account deletion and recovery flow.
 
@@ -74,6 +76,7 @@ The Scene helps adults in entertainment discover collaborators, build profession
 - [x] Deny all Storage access until setup and upload safety are owner-approved.
 - [x] Add an empty Firestore indexes manifest; no application query currently requires a composite index.
 - [ ] Validate Firestore and Storage rules with Firebase Emulator Suite tests.
+- [ ] Complete the emulator test run; current environment lacks Java and the Firebase CLI.
 - [ ] Design separate public/private profile data and explicit discoverability/privacy preferences.
 - [ ] Define schema evolution, production indexes, rate limits, moderation access, retention, and cross-collection account deletion.
 - [ ] Do not deploy rules or alter production Firebase configuration without explicit approval.
@@ -99,12 +102,15 @@ The Scene helps adults in entertainment discover collaborators, build profession
 
 ## Phase 5 — Likes, matching, and interaction state
 
+- [x] Select Firebase Cloud Functions as the candidate trusted backend for evaluation; its Auth/Firestore integration and local emulator fit server-authorized interaction flows. This is not approval to deploy or incur cost.
 - [ ] Persist like/pass state with idempotent actions, duplicate protection, and account/block checks.
 - [ ] Create matches only for mutual interest using trusted server logic or an emulator-tested authorization design.
+- [ ] Design callable/server handlers to require an authenticated caller, validate payload and eligibility, apply block checks, and perform interest/match changes transactionally; keep direct client writes denied.
+- [ ] Decide App Check, rate limits/abuse controls, region, cost/billing, and owner approval before implementing or deploying Functions.
 - [ ] Prevent clients from forging matches or acting for other users.
 - [ ] Add match list/detail and new-match notification flows.
 - [ ] Test duplicates, concurrency/races, retries, blocking, deletion, and unauthorized access.
-- **Gate:** No match UI should claim success until trusted persistence and authorization work end to end.
+- **Gate:** No match UI should claim success until trusted persistence and authorization work end to end; no remote Functions deployment without explicit billing and deployment approval.
 
 ## Phase 6 — Messaging and notifications
 
@@ -172,6 +178,6 @@ The Scene helps adults in entertainment discover collaborators, build profession
 
 ## Immediate next steps
 
-1. Owner: choose/configure a dedicated Firebase Emulator/local project and run auth/profile flows plus Firestore rules tests; do not point tests at production.
-2. Owner/legal: confirm the 18+ assurance approach and approve safety, privacy, support, retention, and deletion requirements.
-3. Engineering: design the public/private profile and trusted interaction backend before starting discovery, matching, blocking, or messaging.
+1. Engineering: install a supported Java runtime and Firebase CLI, then run `npm run test:rules` against the isolated demo project; separately implement Auth/profile integration tests.
+2. Owner/legal: confirm the 18+ assurance approach and approve safety, privacy, support, retention, and deletion requirements; until then, self-attestation is not launch approval.
+3. Engineering/owner: evaluate Firebase Cloud Functions for trusted interaction flows and design the public/private profile model before starting discovery, matching, blocking, or messaging. Obtain billing/deployment approval before any remote Functions setup.
