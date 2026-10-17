@@ -7,6 +7,7 @@ import {
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -549,6 +550,95 @@ describe("Firestore and Storage security rules", () => {
     await assertFails(getBytes(ref(anon, path)));
     await assertFails(deleteObject(ref(other, path)));
     await assertSucceeds(deleteObject(ref(owner, path)));
+  });
+
+  it("creates matches only after a mutual like, and keeps chat to the two members", async () => {
+    const aDb = testEnvironment.authenticatedContext("alice").firestore();
+    const bDb = testEnvironment.authenticatedContext("bob").firestore();
+    const cDb = testEnvironment.authenticatedContext("carol").firestore();
+    const matchData = () => ({
+      users: ["alice", "bob"],
+      createdAt: serverTimestamp(),
+      lastMessageAt: serverTimestamp(),
+      lastMessageText: "",
+      lastSenderId: "",
+    });
+    const like = (db: typeof aDb, uid: string, target: string, action = "like") =>
+      setDoc(doc(db, "swipes", uid, "items", target), { targetId: target, action, createdAt: serverTimestamp() });
+
+    await assertSucceeds(like(aDb, "alice", "bob"));
+    await assertFails(setDoc(doc(aDb, "matches", "alice_bob"), matchData()));
+
+    await assertSucceeds(like(bDb, "bob", "alice", "pass"));
+    await assertFails(setDoc(doc(bDb, "matches", "alice_bob"), matchData()));
+
+    await assertSucceeds(like(bDb, "bob", "alice"));
+    await assertFails(setDoc(doc(cDb, "matches", "alice_bob"), matchData()));
+    await assertFails(setDoc(doc(bDb, "matches", "bob_alice"), { ...matchData(), users: ["bob", "alice"] }));
+    await assertSucceeds(setDoc(doc(bDb, "matches", "alice_bob"), matchData()));
+
+    await assertSucceeds(getDoc(doc(aDb, "matches", "alice_bob")));
+    await assertFails(getDoc(doc(cDb, "matches", "alice_bob")));
+    await assertFails(getDocs(query(collection(cDb, "matches"))));
+
+    const send = (db: typeof aDb, uid: string, text: string) => {
+      const batch = writeBatch(db);
+      batch.set(doc(collection(db, "matches", "alice_bob", "messages")), {
+        senderId: uid,
+        text,
+        createdAt: serverTimestamp(),
+      });
+      batch.update(doc(db, "matches", "alice_bob"), {
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: text,
+        lastSenderId: uid,
+      });
+      return batch.commit();
+    };
+    await assertSucceeds(send(aDb, "alice", "hello"));
+    await assertFails(send(cDb, "carol", "intruder"));
+    await assertFails(send(aDb, "bob", "forged sender"));
+    await assertFails(send(aDb, "alice", ""));
+    await assertFails(
+      addDoc(collection(aDb, "matches", "alice_bob", "messages"), {
+        senderId: "alice",
+        text: "x".repeat(2001),
+        createdAt: serverTimestamp(),
+      }),
+    );
+
+    const messages = collection(bDb, "matches", "alice_bob", "messages");
+    await assertSucceeds(getDocs(query(messages)));
+    await assertFails(getDocs(query(collection(cDb, "matches", "alice_bob", "messages"))));
+    const first = (await getDocs(query(messages))).docs[0];
+    await assertFails(updateDoc(first.ref, { text: "edited" }));
+    await assertFails(deleteDoc(first.ref));
+
+    await assertSucceeds(setDoc(doc(bDb, "matches", "alice_bob", "reads", "bob"), { readAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(bDb, "matches", "alice_bob", "reads", "alice"), { readAt: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(aDb, "matches", "alice_bob")));
+  });
+
+  it("blocks matching and chatting once either member has blocked the other", async () => {
+    const aDb = testEnvironment.authenticatedContext("alice").firestore();
+    const bDb = testEnvironment.authenticatedContext("bob").firestore();
+    for (const [db, uid, target] of [[aDb, "alice", "bob"], [bDb, "bob", "alice"]] as const) {
+      await assertSucceeds(
+        setDoc(doc(db, "swipes", uid, "items", target), { targetId: target, action: "like", createdAt: serverTimestamp() }),
+      );
+    }
+    await assertSucceeds(
+      setDoc(doc(aDb, "blocks", "alice", "items", "bob"), { targetId: "bob", createdAt: serverTimestamp() }),
+    );
+    await assertFails(
+      setDoc(doc(bDb, "matches", "alice_bob"), {
+        users: ["alice", "bob"],
+        createdAt: serverTimestamp(),
+        lastMessageAt: serverTimestamp(),
+        lastMessageText: "",
+        lastSenderId: "",
+      }),
+    );
   });
 
   it("denies all Storage uploads outside the photos folder", async () => {

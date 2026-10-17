@@ -4,6 +4,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getCurrentUserId } from "../authService";
 import { fetchPublicProfile } from "../../../services/publicProfiles";
+import { matchIdFor, tryCreateMatch } from "../../../services/messages";
 import { recordSwipe, type SwipeAction } from "../../../services/swipes";
 import { BlockButton, ReportButton } from "../../community/ui";
 import type { PublicProfile } from "../../../types/profile";
@@ -65,7 +66,8 @@ export default function MemberProfile() {
     setSaving(true);
     try {
       await recordSwipe(userId, memberId, action);
-      navigate("/discover");
+      const matched = action === "like" ? await tryCreateMatch(userId, memberId).catch(() => false) : false;
+      navigate(matched ? `/chat/${matchIdFor(userId, memberId)}` : "/discover");
     } catch (error) {
       console.error("Unable to save swipe:", error);
       setNotice("We couldn't save that choice. Please try again.");

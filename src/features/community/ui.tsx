@@ -2,9 +2,11 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { logoutUser } from "../auth/authService";
 import { buttonStyle, inputStyle, linkButtonStyle } from "./styles";
+import { countUnread, useInbox } from "../messages/useInbox";
+import { getCurrentUserId as currentUserId } from "../auth/authService";
 import { blockMember, reportContent, type ReportTarget } from "../../services/forum";
 
-type Active = "discover" | "community" | "jobs" | "profile";
+type Active = "discover" | "community" | "jobs" | "chats" | "profile";
 
 const navItem = (active: boolean): CSSProperties => ({
   background: "transparent",
@@ -14,12 +16,14 @@ const navItem = (active: boolean): CSSProperties => ({
   fontWeight: active ? 700 : 500,
   fontSize: 13,
   cursor: "pointer",
-  padding: "12px 8px",
+  padding: "12px 4px",
   borderBottom: active ? "2px solid #F7326D" : "2px solid transparent",
 });
 
 export function BottomNav({ active, onError }: { active?: Active; onError?: (message: string) => void }) {
   const navigate = useNavigate();
+  const inbox = useInbox();
+  const unread = countUnread(inbox, currentUserId());
 
   const logout = async () => {
     try {
@@ -49,13 +53,21 @@ export function BottomNav({ active, onError }: { active?: Active; onError?: (mes
           Discover
         </button>
         <button type="button" style={navItem(active === "community")} onClick={() => navigate("/forum")}>
-          Community
+          Forum
         </button>
         <button type="button" style={navItem(active === "jobs")} onClick={() => navigate("/opportunities")}>
           Jobs
         </button>
+        <button type="button" style={navItem(active === "chats")} onClick={() => navigate("/matches")}>
+          Chats
+          {unread > 0 ? (
+            <span aria-label={`${unread} unread`} style={{ marginLeft: 4, background: "#F7326D", borderRadius: 999, padding: "1px 6px", fontSize: 11 }}>
+              {unread}
+            </span>
+          ) : null}
+        </button>
         <button type="button" style={navItem(active === "profile")} onClick={() => navigate("/profile")}>
-          My profile
+          Profile
         </button>
         <button type="button" style={navItem(false)} onClick={() => void logout()}>
           Log out

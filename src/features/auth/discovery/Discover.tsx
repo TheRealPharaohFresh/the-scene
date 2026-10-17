@@ -8,6 +8,8 @@ import {
 } from "../../../services/publicProfiles";
 import { fetchBlockedIds } from "../../../services/forum";
 import { BottomNav } from "../../community/ui";
+import MatchModal from "../../messages/MatchModal";
+import { matchIdFor, tryCreateMatch } from "../../../services/messages";
 import { fetchSwipedIds, recordSwipe, type SwipeAction } from "../../../services/swipes";
 import type { PublicProfile } from "../../../types/profile";
 import Filters from "./Filters";
@@ -51,6 +53,7 @@ export default function Discover() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [matched, setMatched] = useState<{ id: string; name: string } | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [exiting, setExiting] = useState<SwipeAction | null>(null);
   const [request, setRequest] = useState<SearchRequest>({ filters: {}, cursor: null, id: 0 });
@@ -118,6 +121,13 @@ export default function Discover() {
       recordSwipe(userId, top.userId, action)
         .then(() => {
           swiped.current?.add(top.userId);
+          if (action === "like") {
+            tryCreateMatch(userId, top.userId)
+              .then((created) => {
+                if (created) setMatched({ id: matchIdFor(userId, top.userId), name: top.displayName || "this member" });
+              })
+              .catch((matchError: unknown) => console.error("Unable to check for a match:", matchError));
+          }
           const remaining = queue.length - 1;
           setQueue((current) => current.filter((profile) => profile.userId !== top.userId));
           if (remaining <= TOP_UP_AT && hasMore && !loading) startSearch(request.filters, cursor);
@@ -280,12 +290,13 @@ export default function Discover() {
             </button>
           </div>
           <p role="status" style={{ margin: 0, fontSize: 13, opacity: 0.75, textAlign: "center" }}>
-            {notice || "Swipe or use ← → keys. Likes are saved privately; matching isn't live yet."}
+            {notice || "Swipe or use ← → keys. Heart someone who hearts you back to match."}
           </p>
         </div>
       </main>
 
       <BottomNav active="discover" onError={setNotice} />
+      {matched ? <MatchModal matchId={matched.id} name={matched.name} onClose={() => setMatched(null)} /> : null}
     </div>
   );
 }

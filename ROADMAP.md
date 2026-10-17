@@ -106,21 +106,21 @@ The Scene helps adults in entertainment discover collaborators, build profession
 
 - [x] Evaluate Firebase Cloud Functions 2nd-gen callable functions as the candidate trusted backend: [callable requests carry Firebase Auth context](https://firebase.google.com/docs/functions/callable) and can integrate [App Check](https://firebase.google.com/docs/app-check/cloud-functions), and the local emulator supports pre-deployment testing. Admin SDK writes must enforce authorization in function code rather than relying on client Firestore rules. This is not approval to deploy or incur cost.
 - [ ] Persist like/pass state with idempotent actions, duplicate protection, and account/block checks.
-- [ ] Create matches only for mutual interest using trusted server logic or an emulator-tested authorization design.
+- [x] Create matches only for mutual interest using an emulator-tested authorization design (Firestore rules read both swipes and blocks; no backend needed).
 - [ ] Design callable handlers to require an authenticated caller, validate payload and eligibility, apply block checks, and perform interest/match changes transactionally; keep direct client writes denied and return only safe public data.
 - [ ] Decide App Check, rate limits/abuse controls, region, cost/billing, and owner approval before implementing or deploying Functions.
-- [ ] Prevent clients from forging matches or acting for other users.
-- [ ] Add match list/detail and new-match notification flows.
+- [x] Prevent clients from forging matches or acting for other users (rules tests).
+- [x] Add match list and in-app new-match flow (match overlay, Chats tab badge). Instant notification for the first liker needs push/Cloud Functions.
 - [ ] Test duplicates, concurrency/races, retries, blocking, deletion, and unauthorized access.
 - **Gate:** No match UI should claim success until trusted persistence and authorization work end to end; no remote Functions deployment without explicit billing and deployment approval.
 
 ## Phase 6 — Messaging and notifications
 
-- [ ] Create conversations only for verified matches or another owner-approved connection type.
-- [ ] Enforce participant-only conversation/message reads and writes in backend rules/trusted logic.
-- [ ] Add real-time messages, bounded history, size validation, timestamps, sender validation, retries, and empty/error states.
+- [x] Create conversations only for verified matches (messages live under `matches/{id}`).
+- [x] Enforce participant-only conversation/message reads and writes in rules (tested).
+- [x] Add real-time messages, bounded history (200), size validation, server timestamps, sender validation, and empty/error states.
 - [ ] Add block/report controls from profile, match, and conversation surfaces.
-- [ ] Add unread state and in-app notifications; defer push until platform/privacy approval.
+- [x] Add unread state and in-app badge. [ ] Push/email notifications (needs Cloud Functions + Blaze).
 - [ ] Define unmatched/deleted/blocked account and abuse handling.
 - [ ] Test authorization, persistence, block enforcement, pagination, and notification behavior.
 

@@ -343,7 +343,7 @@ service cloud.firestore {
     }
 
     // Private like/pass decisions. Only the owner can read or write them; mutual-match
-    // detection will need a trusted backend (see roadmap Phase 5) and is not implemented.
+    // detection happens in the matches rules, which read both members' swipes.
     match /swipes/{uid}/items/{targetId} {
       allow read: if isOwner(uid);
       allow create, update: if isOwner(uid)
@@ -359,10 +359,83 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /matches/{matchId} {
-      allow read, write: if false;
+    // ---- Matches and chat ----
+    // A match id is the two member ids sorted and joined with "_". Either member may create it,
+    // but only if BOTH members' private swipe records are likes (checked here by the rules, so no
+    // backend is needed) and neither has blocked the other.
+    function matchDoc(matchId) {
+      return /databases/$(database)/documents/matches/$(matchId);
     }
 
+    function isMatchMember(matchId) {
+      return signedIn()
+        && request.auth.uid in get(matchDoc(matchId)).data.users;
+    }
+
+    function swipeIsLike(uid, targetId) {
+      let path = /databases/$(database)/documents/swipes/$(uid)/items/$(targetId);
+      return exists(path) && get(path).data.action == 'like';
+    }
+
+    function hasBlocked(uid, targetId) {
+      return exists(/databases/$(database)/documents/blocks/$(uid)/items/$(targetId));
+    }
+
+    match /matches/{matchId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.users;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['users', 'createdAt', 'lastMessageAt', 'lastMessageText', 'lastSenderId'])
+        && request.resource.data.users is list
+        && request.resource.data.users.size() == 2
+        && request.resource.data.users[0] < request.resource.data.users[1]
+        && matchId == request.resource.data.users[0] + '_' + request.resource.data.users[1]
+        && request.auth.uid in request.resource.data.users
+        && swipeIsLike(request.resource.data.users[0], request.resource.data.users[1])
+        && swipeIsLike(request.resource.data.users[1], request.resource.data.users[0])
+        && !hasBlocked(request.resource.data.users[0], request.resource.data.users[1])
+        && !hasBlocked(request.resource.data.users[1], request.resource.data.users[0])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lastMessageAt == request.time
+        && request.resource.data.lastMessageText == ''
+        && request.resource.data.lastSenderId == '';
+      // Only the last-message preview can change, and only alongside a real message in the same batch.
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.users
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['lastMessageAt', 'lastMessageText', 'lastSenderId'])
+        && request.resource.data.lastMessageAt == request.time
+        && request.resource.data.lastSenderId == request.auth.uid
+        && request.resource.data.lastMessageText is string
+        && request.resource.data.lastMessageText.size() <= 120
+        && request.resource.data.lastMessageText.size() > 0;
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isMatchMember(matchId)
+          && !hasBlocked(request.auth.uid, matchId.split('_')[0] == request.auth.uid ? matchId.split('_')[1] : matchId.split('_')[0]);
+        allow create: if isMatchMember(matchId)
+          && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt'])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000
+          && request.resource.data.createdAt == request.time
+          && !hasBlocked(matchId.split('_')[0] == request.auth.uid ? matchId.split('_')[1] : matchId.split('_')[0], request.auth.uid)
+          && !hasBlocked(request.auth.uid, matchId.split('_')[0] == request.auth.uid ? matchId.split('_')[1] : matchId.split('_')[0]);
+        allow update, delete: if false;
+      }
+
+      // Each member's own "read up to" marker, used for unread badges.
+      match /reads/{uid} {
+        allow read, write: if isOwner(uid)
+          && isMatchMember(matchId)
+          && (request.method == 'delete'
+            || (request.resource.data.keys().hasOnly(['readAt'])
+              && request.resource.data.readAt == request.time));
+      }
+    }
+
+    // Conversations live under matches; this legacy placeholder stays closed.
     match /conversations/{conversationId} {
       allow read, write: if false;
 
@@ -371,6 +444,8 @@ service cloud.firestore {
       }
     }
 
+    // In-app alerts (new match, unread chat) are derived from matches/reads on the client.
+    // Push/email delivery needs Cloud Functions and is not implemented.
     match /notifications/{uid}/items/{notificationId} {
       allow read, write: if false;
     }

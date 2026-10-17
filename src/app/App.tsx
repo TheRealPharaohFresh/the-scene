@@ -20,6 +20,8 @@ const Opportunities = lazy(() => import("../features/community/Opportunities"));
 const BusinessPage = lazy(() => import("../features/community/Business"));
 const Admin = lazy(() => import("../features/community/Admin"));
 const Premium = lazy(() => import("../features/community/Premium"));
+const Matches = lazy(() => import("../features/messages/Matches"));
+const Chat = lazy(() => import("../features/messages/Chat"));
 const Discover = lazy(() => import("../features/auth/discovery/Discover"));
 
 function HomeRedirect() {
@@ -179,6 +181,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Premium />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/matches"
+              element={
+                <ProtectedRoute>
+                  <Matches />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat/:matchId"
+              element={
+                <ProtectedRoute>
+                  <Chat />
                 </ProtectedRoute>
               }
             />
