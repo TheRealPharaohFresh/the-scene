@@ -65,6 +65,7 @@ export function buildPublicProfile(
     };
   }
   if (profile.profilePhotoUrl) publicProfile.profilePhotoUrl = profile.profilePhotoUrl;
+  if (profile.photos) publicProfile.photos = [...profile.photos];
   return publicProfile;
 }
 
@@ -127,6 +128,12 @@ export function normalizePublicProfile(value: unknown, userId: string): PublicPr
   if (links) profile.links = links;
   const photo = safeUrl(value.profilePhotoUrl);
   if (photo) profile.profilePhotoUrl = photo;
+  if (Array.isArray(value.photos)) {
+    profile.photos = value.photos
+      .map(safeUrl)
+      .filter((url): url is string => Boolean(url))
+      .slice(0, 6);
+  }
   return profile;
 }
 

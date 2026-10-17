@@ -4,6 +4,8 @@ import type { UserProfile } from "../../../types/profile";
 import { getCurrentUserId } from "../authService";
 import { fetchUserProfile } from "../../../services/firebase";
 import { normalizeProfileUrl } from "../validation";
+import PhotoGallery from "../../photos/PhotoGallery";
+import { photoList } from "../../../services/photos";
 
 type Props = {
   profile?: UserProfile | null;
@@ -139,6 +141,12 @@ export default function ProfilePage({ profile: initialProfile }: Props) {
             color: "#F5F4F2",
           }}
         >
+          {photoList(profile).length > 1 ? (
+            <div style={{ margin: "0 -32px 24px" }}>
+              <PhotoGallery photos={photoList(profile)} label="Your" height={280} />
+            </div>
+          ) : null}
+
           {/* HEADER */}
 
           <div

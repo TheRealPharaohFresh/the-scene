@@ -6,6 +6,8 @@ import {
 } from "../../../data/entertainmentRoles";
 import { usStates } from "../../../data/usStates";
 import { fetchUserProfile, saveUserProfile } from "../../../services/firebase";
+import { deletePhoto, photoList } from "../../../services/photos";
+import PhotoManager from "../../photos/PhotoManager";
 import {
   getCurrentUserId,
   hasCompletedProfile,
@@ -84,6 +86,8 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
   const [lookingFor, setLookingFor] = useState<LookingForOption[]>([]);
   const [discoverable, setDiscoverable] = useState(true);
   const [shared, setShared] = useState<ShareableField[]>([...DEFAULT_SHARED_FIELDS]);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [removedPhotos, setRemovedPhotos] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(editMode);
   const [message, setMessage] = useState("");
@@ -145,6 +149,7 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
           website: profile.socialMedia?.website ?? "",
         });
         setLookingFor(profile.lookingFor ?? []);
+        setPhotos(photoList(profile));
       })
       .catch((error: unknown) => {
         if (mounted) {
@@ -212,12 +217,15 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
       portfolioUrl,
       socialMedia,
       lookingFor,
+      photos,
       createdAt: existingProfile?.createdAt || new Date().toISOString(),
     };
 
     try {
       setSaving(true);
       await saveUserProfile(userId, profile, { discoverable, shared });
+      await Promise.all(removedPhotos.filter((url) => !photos.includes(url)).map(deletePhoto));
+      setRemovedPhotos([]);
       markProfileComplete();
       setMessage(editMode ? "Profile updated." : "Profile saved. Taking you to Discover...");
       if (!editMode) {
@@ -310,18 +318,11 @@ export default function CreateProfile({ editMode = false }: CreateProfileProps) 
               placeholder="Preferred name"
               maxLength={50}
             />
-            <div
-              style={{
-                padding: "14px 16px",
-                border: "1px solid rgba(245,244,242,0.2)",
-                borderRadius: 12,
-                background: "rgba(5,4,8,0.24)",
-                opacity: 0.85,
-              }}
-            >
-              Photo uploads are temporarily unavailable. You can add your
-              profile and cover photos after storage is enabled.
-            </div>
+            <PhotoManager
+              photos={photos}
+              onChange={setPhotos}
+              onRemove={(url) => setRemovedPhotos((current) => [...current, url])}
+            />
 
             <GenderSelect
               value={gender}

@@ -1,3 +1,5 @@
+import PhotoGallery from "../../photos/PhotoGallery";
+import { photoList } from "../../../services/photos";
 import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getCurrentUserId } from "../authService";
@@ -114,14 +116,7 @@ export default function MemberProfile() {
               border: "1px solid rgba(245,244,242,0.16)",
             }}
           >
-            {profile.profilePhotoUrl ? (
-              <img
-                src={profile.profilePhotoUrl}
-                alt=""
-                referrerPolicy="no-referrer"
-                style={{ width: "100%", maxHeight: 360, objectFit: "cover", display: "block" }}
-              />
-            ) : null}
+            <PhotoGallery photos={photoList(profile)} label={profile.displayName || "Member"} />
             <div style={{ padding: 22, display: "grid", gap: 16 }}>
               <div>
                 <h1 style={{ margin: 0, fontSize: 30 }}>{profile.displayName || "Creative member"}</h1>

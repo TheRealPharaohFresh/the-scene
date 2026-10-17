@@ -20,7 +20,7 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
-import { ref, uploadBytes } from "firebase/storage";
+import { deleteObject, getBytes, ref, uploadBytes } from "firebase/storage";
 
 const projectId = "demo-the-scene";
 const testEnvironmentPromise = initializeTestEnvironment({
@@ -503,7 +503,55 @@ describe("Firestore and Storage security rules", () => {
     await assertFails(setDoc(doc(db, "matches", "forged"), { participants: ["owner"] }));
   });
 
-  it("denies all Storage uploads", async () => {
+  const photoUrl = (uid: string, name: string) =>
+    `https://firebasestorage.googleapis.com/v0/b/${projectId}.appspot.com/o/users%2F${uid}%2Fphotos%2F${name}.jpg?alt=media&token=t`;
+
+  it("validates photo lists on private profiles and mirrors them publicly", async () => {
+    const db = testEnvironment.authenticatedContext("owner").firestore();
+    const write = (photos: string[], publicPhotos = photos) => {
+      const profile = { ...validProfile("owner"), photos };
+      const batch = writeBatch(db);
+      batch.set(doc(db, "profiles", "owner"), profile);
+      batch.set(doc(db, "publicProfiles", "owner"), {
+        ...publicProfileFor(profile),
+        photos: publicPhotos,
+      });
+      return batch.commit();
+    };
+    const urls = (n: number) => Array.from({ length: n }, (_, i) => photoUrl("owner", `photo000${i}`));
+
+    await assertSucceeds(write(urls(6)));
+    await assertFails(write(urls(7)));
+    await assertFails(write([photoUrl("someone", "photo0001")]));
+    await assertFails(write(["https://example.com/a.jpg"]));
+    await assertFails(write([urls(1)[0], urls(1)[0]]));
+    await assertFails(write(urls(2), urls(1)));
+  });
+
+  it("limits Storage photos to owner-created small images and signed-in reads", async () => {
+    const jpeg = { contentType: "image/jpeg" };
+    const bytes = new Uint8Array([1, 2, 3]);
+    const owner = testEnvironment.authenticatedContext("owner").storage();
+    const other = testEnvironment.authenticatedContext("other").storage();
+    const anon = testEnvironment.unauthenticatedContext().storage();
+    const path = "users/owner/photos/abcdef0123.jpg";
+
+    await assertSucceeds(uploadBytes(ref(owner, path), bytes, jpeg));
+    await assertFails(uploadBytes(ref(owner, path), bytes, jpeg));
+    await assertFails(uploadBytes(ref(other, "users/owner/photos/abcdef0124.jpg"), bytes, jpeg));
+    await assertFails(uploadBytes(ref(owner, "users/owner/photos/abcdef0125.jpg"), bytes, { contentType: "text/html" }));
+    await assertFails(uploadBytes(ref(owner, "users/owner/photos/x.jpg"), bytes, jpeg));
+    await assertFails(
+      uploadBytes(ref(owner, "users/owner/photos/abcdef0126.jpg"), new Uint8Array(1024 * 1024 + 1), jpeg),
+    );
+
+    await assertSucceeds(getBytes(ref(other, path)));
+    await assertFails(getBytes(ref(anon, path)));
+    await assertFails(deleteObject(ref(other, path)));
+    await assertSucceeds(deleteObject(ref(owner, path)));
+  });
+
+  it("denies all Storage uploads outside the photos folder", async () => {
     const storage = testEnvironment.authenticatedContext("owner").storage();
     await assertFails(
       uploadBytes(ref(storage, "users/owner/profile.png"), new Uint8Array([1, 2, 3])),

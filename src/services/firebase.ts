@@ -9,6 +9,7 @@ import type {
 import { normalizeProfileUrl, validateUserProfile } from "../features/auth/validation";
 import { initFirebase } from "./firebaseClient";
 import { buildPublicProfile } from "./publicProfiles";
+import { MAX_PHOTOS } from "./photos";
 
 const PROFILE_STORAGE_PREFIX = "the-scene-profile-";
 const genders: readonly GenderOption[] = ["Male", "Female", "Non-binary", "Prefer not to say"];
@@ -75,6 +76,14 @@ function normalizeStoredProfile(value: unknown, userId: string): UserProfile {
       : "",
     profilePhotoUrl: safeStoredImageUrl(data.profilePhotoUrl),
     coverPhotoUrl: safeStoredImageUrl(data.coverPhotoUrl),
+    ...(Array.isArray(data.photos)
+      ? {
+          photos: data.photos
+            .map(safeStoredImageUrl)
+            .filter((url): url is string => Boolean(url))
+            .slice(0, MAX_PHOTOS),
+        }
+      : {}),
   };
 }
 
@@ -119,9 +128,11 @@ async function fetchProfileFromFirestore(userId: string) {
 export async function saveUserProfile(userId: string, profile: UserProfile, options: { discoverable?: boolean; shared?: readonly ShareableField[] } = {}) {
   if (!userId) throw new Error("User ID is required to save a profile.");
 
-  const { nickname, ...profileFields } = profile;
+  const { nickname, photos, ...profileFields } = profile;
+  const cleanPhotos = photos?.map((url) => normalizeOptionalUrl(url)).filter(Boolean).slice(0, MAX_PHOTOS);
   const normalizedProfile: UserProfile = {
     ...profileFields,
+    ...(cleanPhotos ? { photos: cleanPhotos } : {}),
     userId,
     displayName: profile.displayName?.trim() || profile.nickname?.trim() || "",
     ...(nickname?.trim() ? { nickname: nickname.trim() } : {}),
@@ -130,7 +141,7 @@ export async function saveUserProfile(userId: string, profile: UserProfile, opti
     city: profile.city?.trim() ?? "",
     location: profile.location?.trim() ?? "",
     portfolioUrl: normalizeOptionalUrl(profile.portfolioUrl),
-    profilePhotoUrl: normalizeOptionalUrl(profile.profilePhotoUrl),
+    profilePhotoUrl: cleanPhotos ? (cleanPhotos[0] ?? "") : normalizeOptionalUrl(profile.profilePhotoUrl),
     coverPhotoUrl: normalizeOptionalUrl(profile.coverPhotoUrl),
     socialMedia: {
       instagram: normalizeOptionalUrl(profile.socialMedia?.instagram),

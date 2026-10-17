@@ -2,6 +2,22 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    // Members' photos. Any signed-in member can view; only the owner can add or delete.
+    // Files are create-only (no overwrite), small, and JPEG/WebP; the app resizes before upload.
+    // The 6-photo cap is enforced by the Firestore profile rules, not here.
+    match /users/{uid}/photos/{photoId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && resource == null
+        && photoId.matches('[A-Za-z0-9_-]{8,64}[.](jpg|webp)')
+        && request.resource.size > 0
+        && request.resource.size <= 1024 * 1024
+        && request.resource.contentType in ['image/jpeg', 'image/webp'];
+      allow update: if false;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

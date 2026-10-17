@@ -93,7 +93,8 @@ service cloud.firestore {
           'lookingFor',
           'createdAt',
           'profilePhotoUrl',
-          'coverPhotoUrl'
+          'coverPhotoUrl',
+          'photos'
         ])
         && data.userId == uid
         && data.displayName is string
@@ -193,7 +194,29 @@ service cloud.firestore {
         && data.createdAt is string
         && data.createdAt.size() <= 40
         && (!('profilePhotoUrl' in data) || validLink(data.profilePhotoUrl))
-        && (!('coverPhotoUrl' in data) || validLink(data.coverPhotoUrl));
+        && (!('coverPhotoUrl' in data) || validLink(data.coverPhotoUrl))
+        && validPhotos(data, uid);
+    }
+
+    // Photo URLs must point at the owner's own folder in Cloud Storage. Rules cannot loop,
+    // so each of the 6 allowed positions is checked explicitly.
+    function validPhotoUrl(url, uid) {
+      return url is string
+        && url.size() <= 1024
+        && url.matches('https://firebasestorage[.]googleapis[.]com/v0/b/[^/]+/o/users%2F' + uid + '%2Fphotos%2F[^/]+');
+    }
+
+    function validPhotos(data, uid) {
+      return !('photos' in data)
+        || (data.photos is list
+          && data.photos.size() <= 6
+          && data.photos.toSet().size() == data.photos.size()
+          && (data.photos.size() < 1 || validPhotoUrl(data.photos[0], uid))
+          && (data.photos.size() < 2 || validPhotoUrl(data.photos[1], uid))
+          && (data.photos.size() < 3 || validPhotoUrl(data.photos[2], uid))
+          && (data.photos.size() < 4 || validPhotoUrl(data.photos[3], uid))
+          && (data.photos.size() < 5 || validPhotoUrl(data.photos[4], uid))
+          && (data.photos.size() < 6 || validPhotoUrl(data.photos[5], uid)));
     }
 
     // Must mirror the owner's private profile, which is written in the same
@@ -226,6 +249,7 @@ service cloud.firestore {
           'links',
           'createdAt',
           'profilePhotoUrl',
+          'photos',
           'updatedAt'
         ])
         && data.keys().hasAll([
@@ -257,7 +281,8 @@ service cloud.firestore {
         && data.lookingFor == ('lookingFor' in data.shared ? getAfter(profilePath).data.lookingFor : [])
         && validPublicLinks(data, getAfter(profilePath).data)
         && data.createdAt == getAfter(profilePath).data.createdAt
-        && data.get('profilePhotoUrl', '') == getAfter(profilePath).data.get('profilePhotoUrl', '');
+        && data.get('profilePhotoUrl', '') == getAfter(profilePath).data.get('profilePhotoUrl', '')
+        && data.get('photos', []) == getAfter(profilePath).data.get('photos', []);
     }
 
     match /users/{uid} {

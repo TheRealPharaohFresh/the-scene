@@ -88,8 +88,9 @@ The Scene helps adults in entertainment discover collaborators, build profession
 - [x] Normalize external profile links to HTTP(S), reject other schemes, preserve the creation timestamp while editing, and validate field sizes.
 - [x] Implement owner profile editing and a saved-profile view.
 - [ ] Add emulator-backed legacy-schema migration tests; update, validation, and privacy coverage is present in the current emulator suites.
-- [ ] Enable optional image uploads only after owner approval and Storage setup/billing review.
-- [ ] Before enabling uploads, add MIME/content validation, file-size/path restrictions, progress/retry/removal UX, and tested Storage rules.
+- [x] Built photo uploads (main + 5 extras): client resize, MIME/size/path-restricted Storage rules with emulator tests, add/remove/reorder UX, swipe-card carousel, fullscreen viewer, profile gallery.
+- [ ] Enable live uploads: owner enables Blaze + Storage (us-central1/us-west1/us-east1), then deploy Storage rules and test live.
+- [ ] Photo moderation: currently shown immediately with report; consider review/automated checks (needs Cloud Functions).
 - [ ] Keep only city/region the user elects to provide; do not collect or expose a precise home location.
 
 ## Phase 4 — Creative discovery and search

@@ -1,8 +1,11 @@
 import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import type { PublicProfile } from "../../../types/profile";
 import type { SwipeAction } from "../../../services/swipes";
+import { photoList } from "../../../services/photos";
+import PhotoViewer from "../../photos/PhotoViewer";
 
 const SWIPE_THRESHOLD = 110;
+const TAP_SLOP = 6;
 const brandHues = [268, 285, 320, 340, 255];
 
 function hueFor(userId: string) {
@@ -37,6 +40,11 @@ export default function SwipeCard({ profile, interactive, exiting, onSwipe, onOp
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const startX = useRef(0);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const photos = photoList(profile);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const shownIndex = Math.min(photoIndex, Math.max(photos.length - 1, 0));
 
   const hue = hueFor(profile.userId);
   const location = [profile.city, profile.stateCode].filter(Boolean).join(", ");
@@ -51,9 +59,21 @@ export default function SwipeCard({ profile, interactive, exiting, onSwipe, onOp
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (dragging) setDx(event.clientX - startX.current);
   };
-  const handlePointerUp = () => {
+  const handleTap = (event: PointerEvent<HTMLDivElement>) => {
+    const rect = heroRef.current?.getBoundingClientRect();
+    if (!rect || !photos.length) return;
+    const inside =
+      event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    if (!inside) return;
+    const ratio = (event.clientX - rect.left) / rect.width;
+    if (ratio < 0.33) setPhotoIndex(Math.max(shownIndex - 1, 0));
+    else if (ratio > 0.67) setPhotoIndex(Math.min(shownIndex + 1, photos.length - 1));
+    else setViewerOpen(true);
+  };
+  const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
     setDragging(false);
+    if (event.type === "pointerup" && Math.abs(dx) < TAP_SLOP) handleTap(event);
     if (Math.abs(dx) > SWIPE_THRESHOLD) {
       onSwipe(dx > 0 ? "like" : "pass");
     } else {
@@ -89,6 +109,7 @@ export default function SwipeCard({ profile, interactive, exiting, onSwipe, onOp
       }}
     >
       <div
+        ref={heroRef}
         style={{
           position: "relative",
           flex: "1 1 55%",
@@ -98,9 +119,9 @@ export default function SwipeCard({ profile, interactive, exiting, onSwipe, onOp
           background: `linear-gradient(160deg, hsl(${hue} 70% 38%) 0%, hsl(${(hue + 50) % 360} 75% 45%) 100%)`,
         }}
       >
-        {profile.profilePhotoUrl ? (
+        {photos.length ? (
           <img
-            src={profile.profilePhotoUrl}
+            src={photos[shownIndex]}
             alt=""
             draggable={false}
             referrerPolicy="no-referrer"
@@ -125,6 +146,43 @@ export default function SwipeCard({ profile, interactive, exiting, onSwipe, onOp
             {location ? ` · ${location}` : ""}
           </p>
         </div>
+        {photos.length > 1 ? (
+          <div aria-hidden="true" style={{ position: "absolute", top: 10, left: 12, right: 12, display: "flex", gap: 4 }}>
+            {photos.map((url, index) => (
+              <span
+                key={url}
+                style={{
+                  flex: 1,
+                  height: 4,
+                  borderRadius: 2,
+                  background: index === shownIndex ? "#fff" : "rgba(255,255,255,0.35)",
+                }}
+              />
+            ))}
+          </div>
+        ) : null}
+        {interactive && photos.length ? (
+          <button
+            type="button"
+            aria-label={`View all ${photos.length} photos of ${name}`}
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => setViewerOpen(true)}
+            style={{
+              position: "absolute",
+              right: 16,
+              top: photos.length > 1 ? 24 : 16,
+              borderRadius: 999,
+              border: "1px solid rgba(245,244,242,0.4)",
+              background: "rgba(5,4,8,0.55)",
+              color: "#F5F4F2",
+              padding: "6px 12px",
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            {photos.length} {photos.length === 1 ? "photo" : "photos"}
+          </button>
+        ) : null}
         {interactive && onOpen ? (
           <button
             type="button"
@@ -205,6 +263,9 @@ export default function SwipeCard({ profile, interactive, exiting, onSwipe, onOp
           </div>
         ) : null}
       </div>
+      {viewerOpen && photos.length ? (
+        <PhotoViewer photos={photos} startIndex={shownIndex} label={name} onClose={() => setViewerOpen(false)} />
+      ) : null}
     </article>
   );
 }

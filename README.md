@@ -14,7 +14,7 @@ The Scene is an early-stage web app for adults in the entertainment industry. It
 - Profile create, view, and edit for nickname, gender option, entertainment category/roles, bio, optional entered city/selected US state or territory, portfolio/social URLs, and connection preferences.
 - Profile URL input is normalized to HTTP(S); unsafe protocols are rejected. Profile saves validate ownership and bounded field lengths.
 - Firestore is the primary profile store when configured. Firestore errors are shown instead of being presented as successful LocalStorage saves. LocalStorage is only a compatibility fallback when Firebase is not configured.
-- Profile photos and cover photos have no upload UI. Cloud Storage rules currently deny all access; enabling uploads requires owner approval, Storage/billing setup, validation, and tested upload/removal behavior.
+- Photos: members can add a main photo plus up to 5 extras (6 total) in Edit Profile. Images are resized in the browser (max 1280px, JPEG, under 1 MiB, EXIF stripped). Discover cards show a tap-through carousel with a fullscreen viewer, and profile pages show a gallery. Photos appear immediately (no review); members can report them. Storage rules allow only owner-created `users/<uid>/photos/*` files and signed-in reads. **Live uploads stay off until Storage is enabled (requires the Blaze plan) and `firebase deploy --only storage,firestore` is run.** Verified with emulator rules tests only; abandoned uploads may leave orphaned files.
 - Private profiles (`profiles/{uid}`) are readable only by their owner. Members who opt in (a "Let other members find me in Discover" checkbox on the profile form) also get a `publicProfiles/{uid}` copy limited to nickname, category, roles, bio, city/state, and connection preferences. Rules require it to mirror the private profile, and any signed-in member can read it only while `discoverable` is true. Per-field sharing: the owner picks which of bio, city, looking-for, and portfolio/social links are shared (`shared` list on the public doc); unshared fields are written blank and the rules enforce this. Email and gender never leave the private profile. Profiles saved before discovery stay hidden until the owner re-saves and opts in.
 - Discover (`/discover`) is the post-login landing screen: opted-in members appear as swipeable cards (drag, ♥/✕ buttons, or ←/→ keys) with a bottom bar for Discover, Community, My profile, and Log out. “View profile” on a card opens a detail page (`/members/:id`) with the member's shared fields, Like/Pass, Report, and Block. Likes/passes are saved privately in `swipes/{uid}/items/{targetId}` (owner-only) and swiped members are not shown again; mutual matching is not implemented. Collapsible category, role, state, and looking-for filters, paged 12 at a time, with loading/empty/error/retry states. Blocked members are excluded client-side (blocks are private; enforcement is soft until a trusted backend exists). Relevance ranking is not implemented. Discover queries order by document ID and need no composite index; the looking-for filter and self-exclusion run in the client.
 - Community (`/forum`, `/forum/threads/:id`, `/groups/:id`): open Q&A threads with replies, groups (anyone can join/leave; the owner cannot leave), group-only posts, and group events (music video, film shoot, etc.) with going/maybe/can't-go RSVPs. An event's exact address is in a separate `private/details` doc readable only by the host and members who RSVP “going”. Author names are verified against the author's profile by the rules. Members can report threads, replies, groups, events, and members (`reports`, write-only) and block members (`blocks/{uid}/items`). Reports are reviewed on the admin screen by owner-seeded admins. No edit, image upload, pagination beyond 25 threads/50 groups, or notifications yet.
@@ -59,7 +59,7 @@ The Firebase owner must enable Email/Password Authentication and create the Fire
 
 ## Emulator workflow
 
-The app can connect Auth and Firestore to local emulators when `VITE_USE_FIREBASE_EMULATORS=true`. The app does not connect to Storage; the Storage emulator is started only by the security-rules test command. Install/use the Firebase CLI separately; it is not a project dependency.
+The app can connect Auth and Firestore to local emulators when `VITE_USE_FIREBASE_EMULATORS=true`. The app also connects to the Storage emulator (port 9199) in that mode. Install/use the Firebase CLI separately; it is not a project dependency.
 
 For local emulator use, install the Firebase CLI and a Java runtime required by the emulators. Set dummy client values in the ignored `.env` (never real production configuration), for example:
 
@@ -116,7 +116,7 @@ The non-forced `npm audit fix` updated semver-compatible dependencies, including
 - `users/{uid}` stores the owner's account/profile identity fields and adult self-attestation; reads are owner-only. Attestation is user-supplied, not independently verified.
 - `profiles/{uid}` stores the creative profile. Reads and writes are owner-only; Firestore rules bound fields and validate the current schema.
 - Firestore rules deny client access to future interaction/safety collections until trusted authorization and matching UI exist.
-- Storage rules deny all reads/writes until a reviewed upload flow and explicit owner setup are complete.
+- Storage rules deny everything except the photo path `users/<uid>/photos/*`; they are not deployed until Storage is enabled.
 - Profile completion is determined from the authenticated owner's Firestore profile document when Firebase is configured. UI route guards supplement backend rules; they are not security enforcement.
 - `firestore.indexes.json` defines one composite index (`threads`: `groupId` + `createdAt` desc) for forum and group post lists. Deploy it with the rules; it takes a few minutes to build.
 
@@ -130,7 +130,7 @@ After approval, use an explicitly selected project and the approved Firebase CLI
 firebase deploy --only firestore:rules,firestore:indexes --project <approved-project-id>
 ```
 
-The Storage rules deny all access; do not deploy or loosen them until the owner approves Storage setup and the upload flow is fully implemented/tested. Before any production change, save the currently deployed rules/index configuration. If validation fails after an approved deployment, restore the last reviewed rules from version control and re-run non-production emulator checks; do not make emergency production edits without the project owner.
+Do not deploy the Storage rules until the owner enables Storage/Blaze. Before any production change, save the currently deployed rules/index configuration. If validation fails after an approved deployment, restore the last reviewed rules from version control and re-run non-production emulator checks; do not make emergency production edits without the project owner.
 
 ## Launch blockers
 

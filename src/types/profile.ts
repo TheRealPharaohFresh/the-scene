@@ -38,6 +38,7 @@ export type PublicProfile = {
   links?: PublicLinks;
   createdAt: string;
   profilePhotoUrl?: string;
+  photos?: string[];
 };
 
 export type UserProfile = {
@@ -57,4 +58,5 @@ export type UserProfile = {
   createdAt: string;
   profilePhotoUrl?: string;
   coverPhotoUrl?: string;
+  photos?: string[];
 };

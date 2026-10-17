@@ -7,6 +7,7 @@ type FirebaseClient = {
   ref: typeof import("firebase/storage").ref;
   uploadString: typeof import("firebase/storage").uploadString;
   uploadBytes: typeof import("firebase/storage").uploadBytes;
+  deleteObject: typeof import("firebase/storage").deleteObject;
   getDownloadURL: typeof import("firebase/storage").getDownloadURL;
 };
 
@@ -49,7 +50,7 @@ async function initializeFirebase(): Promise<FirebaseClient | null> {
     throw new Error(`Firebase configuration is incomplete. Missing: ${missingConfiguration.join(", ")}.`);
   }
 
-  const [{ initializeApp }, { getAuth }, { getFirestore }, { getStorage, ref, uploadString, uploadBytes, getDownloadURL }, { getAnalytics }] = await Promise.all([
+  const [{ initializeApp }, { getAuth }, { getFirestore }, { getStorage, ref, uploadString, uploadBytes, getDownloadURL, deleteObject }, { getAnalytics }] = await Promise.all([
     import("firebase/app"),
     import("firebase/auth"),
     import("firebase/firestore"),
@@ -76,15 +77,17 @@ async function initializeFirebase(): Promise<FirebaseClient | null> {
   const analytics = measurementId && !useEmulators ? getAnalytics(app) : null;
 
   if (useEmulators) {
-    const [{ connectAuthEmulator }, { connectFirestoreEmulator }] = await Promise.all([
+    const [{ connectAuthEmulator }, { connectFirestoreEmulator }, { connectStorageEmulator }] = await Promise.all([
       import("firebase/auth"),
       import("firebase/firestore"),
+      import("firebase/storage"),
     ]);
     connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
     connectFirestoreEmulator(firestore, "127.0.0.1", 8080);
+    if (storage) connectStorageEmulator(storage, "127.0.0.1", 9199);
   }
 
-  return { app, auth, firestore, storage, analytics, ref, uploadString, uploadBytes, getDownloadURL };
+  return { app, auth, firestore, storage, analytics, ref, uploadString, uploadBytes, getDownloadURL, deleteObject };
 }
 
 export async function uploadDataUrlToStorage(dataUrl: string, path: string) {
